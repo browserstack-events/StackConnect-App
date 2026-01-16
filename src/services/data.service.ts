@@ -15,7 +15,8 @@ export interface Attendee {
   spocEmail: string;
   checkInTime: Date | null;
   printStatus: string;
-  leadIntel?: string; // New Field for Column Q
+  leadIntel?: string; // Column Q (Account Intel)
+  notes?: string; // New User Note Column
   title?: string;
 }
 
@@ -29,7 +30,7 @@ export class DataService {
   
   // Configuration
   // REPLACE THIS STRING WITH YOUR ACTUAL DEPLOYED APPS SCRIPT WEB APP URL
-  private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyBS8U7puIVXH6OJm3U8DcuDTRcyjCaQjgCvBW2Y1HxgW_yfYdrUgBTmXT00_bInAd_/exec'; 
+  private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsdkPGi3-rxDTWAJIHfK6O70GaPSmJmlqLYTlX8jxFE7MqOS7koul0uSKTynDXKOa/exec'; 
   
   private currentSheetUrl = signal<string>(''); 
 
@@ -75,6 +76,22 @@ export class DataService {
     this.syncChangeToBackend({
       email: attendee.email,
       attendance: newStatus
+    });
+  }
+
+  updateNote(id: string, note: string) {
+    const attendee = this.rawAttendees().find(a => a.id === id);
+    if (!attendee) return;
+
+    // 1. Optimistic UI Update
+    this.rawAttendees.update(attendees =>
+      attendees.map(a => a.id === id ? { ...a, notes: note } : a)
+    );
+
+    // 2. Background Sync
+    this.syncChangeToBackend({
+      email: attendee.email,
+      notes: note
     });
   }
 
@@ -198,7 +215,8 @@ export class DataService {
       if (!full) full = 'Unknown Attendee';
 
       // 3. Fallback Lookups for other fields
-      let spocVal = this.cleanString(get('spocName', 'SPOC of the day', 'spoc', 'Account owner', 'Owner', 'SPOC'));
+      // FIX: Restore 'spocName' as primary key if available (backend fix), fallback to 'SPOC of the day'
+      let spocVal = this.cleanString(get('spocName', 'SPOC of the day', 'spocOfTheDay'));
       if (!spocVal) spocVal = 'Unassigned';
 
       // Robust Attendance: Check for 'Status', 'Registration Status'
@@ -220,7 +238,8 @@ export class DataService {
         spocEmail: this.cleanString(get('spocEmail', 'SPoC email', 'spoc_email')),
         printStatus: this.cleanString(get('printStatus', 'Print Status')),
         checkInTime: checkInDate,
-        leadIntel: this.cleanString(get('leadIntel', 'Lead Intel', 'talking points', 'Intel', 'Notes'))
+        leadIntel: this.cleanString(get('leadIntel', 'Account Intel', 'Lead Intel', 'talking points', 'Intel')),
+        notes: this.cleanString(get('notes', 'Note', 'Notes', 'Comment', 'Comments', 'Feedback'))
       };
     });
 

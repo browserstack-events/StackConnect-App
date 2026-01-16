@@ -40,7 +40,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
             <select 
               [ngModel]="selectedSpoc()" 
               (ngModelChange)="selectedSpoc.set($event)"
-              class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-gray-50 border">
+              class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white border text-gray-900">
               <option value="All">All SPOCs (Admin View)</option>
               @for (spoc of uniqueSpocs(); track spoc) {
                 <option [value]="spoc">{{ spoc }}</option>
@@ -58,7 +58,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                [ngModel]="sheetUrl()" 
                (ngModelChange)="sheetUrl.set($event)"
                placeholder="https://docs.google.com/spreadsheets/d/..."
-               class="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500">
+               class="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400">
            </div>
            <button 
              (click)="syncData()"
@@ -114,7 +114,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
               type="text" 
               [ngModel]="searchQuery()"
               (ngModelChange)="searchQuery.set($event)"
-              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" 
+              class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm text-gray-900" 
               placeholder="Search by name or company...">
           </div>
           
@@ -269,6 +269,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
         [isAdmin]="selectedSpoc() === 'All'"
         (updateLanyard)="handleLanyardUpdate(selectedAttendee()!.id, $event)"
         (updateAttendance)="handleAttendanceToggle(selectedAttendee()!.id)"
+        (updateNote)="handleNoteUpdate(selectedAttendee()!.id, $event)"
         (close)="closeDetail()" />
     }
   `
@@ -396,6 +397,12 @@ export class SpocDashboardComponent {
 
   handleAttendanceToggle(id: string) {
     this.dataService.toggleAttendance(id);
+    const updated = this.allAttendees().find(a => a.id === id);
+    if (updated) this.selectedAttendee.set(updated);
+  }
+  
+  handleNoteUpdate(id: string, note: string) {
+    this.dataService.updateNote(id, note);
     const updated = this.allAttendees().find(a => a.id === id);
     if (updated) this.selectedAttendee.set(updated);
   }
