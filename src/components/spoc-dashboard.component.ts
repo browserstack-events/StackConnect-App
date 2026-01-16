@@ -33,50 +33,77 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
       }
 
       <!-- Control Bar: SPOC Selector & Sync -->
-      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Viewing As</label>
-          <div class="relative">
-            <select 
-              [ngModel]="selectedSpoc()" 
-              (ngModelChange)="selectedSpoc.set($event)"
-              class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white border text-gray-900">
-              <option value="All">All SPOCs (Admin View)</option>
-              @for (spoc of uniqueSpocs(); track spoc) {
-                <option [value]="spoc">{{ spoc }}</option>
-              }
-            </select>
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Viewing As</label>
+            <div class="relative">
+              <select 
+                [ngModel]="selectedSpoc()" 
+                (ngModelChange)="selectedSpoc.set($event)"
+                class="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md bg-white border text-gray-900">
+                <option value="All">All SPOCs (Admin View)</option>
+                @for (spoc of uniqueSpocs(); track spoc) {
+                  <option [value]="spoc">{{ spoc }}</option>
+                }
+              </select>
+            </div>
           </div>
+
+          @if (selectedSpoc() === 'All') {
+          <div class="flex items-end gap-2 w-full md:w-auto">
+             <div class="w-full md:w-96">
+               <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Google Sheet URL (Browser Link)</label>
+               <input 
+                 type="text" 
+                 [ngModel]="sheetUrl()" 
+                 (ngModelChange)="sheetUrl.set($event)"
+                 placeholder="https://docs.google.com/spreadsheets/d/..."
+                 class="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400">
+             </div>
+             <button 
+               (click)="syncData()"
+               [disabled]="isSyncing()"
+               class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50 min-w-[100px] justify-center">
+               @if (isSyncing()) {
+                 <svg class="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                 </svg>
+               } @else {
+                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                 </svg>
+               }
+               {{ availableSheets().length > 0 ? 'Refresh' : 'Sync' }}
+             </button>
+          </div>
+          }
         </div>
 
-        @if (selectedSpoc() === 'All') {
-        <div class="flex items-end gap-2 w-full md:w-auto">
-           <div class="w-full md:w-96">
-             <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Google Sheet URL (Browser Link)</label>
-             <input 
-               type="text" 
-               [ngModel]="sheetUrl()" 
-               (ngModelChange)="sheetUrl.set($event)"
-               placeholder="https://docs.google.com/spreadsheets/d/..."
-               class="block w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400">
-           </div>
-           <button 
-             (click)="syncData()"
-             [disabled]="isSyncing()"
-             class="bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2 shadow-sm transition-colors disabled:opacity-50 min-w-[100px] justify-center">
-             @if (isSyncing()) {
-               <svg class="animate-spin h-4 w-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-               </svg>
-             } @else {
-               <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-               </svg>
-             }
-             Sync
-           </button>
-        </div>
+        <!-- Sheet Pills Selector -->
+        @if (availableSheets().length > 0) {
+          <div class="mt-4 pt-4 border-t border-gray-100 animate-fade-in">
+            <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Select Worksheet</label>
+            <div class="flex flex-wrap gap-2">
+              @for (sheet of availableSheets(); track sheet) {
+                <button 
+                  (click)="selectSheet(sheet)"
+                  [disabled]="isSyncing()"
+                  class="px-4 py-1.5 rounded-full text-sm font-medium transition-all border disabled:opacity-50"
+                  [class.bg-blue-600]="currentSheetName() === sheet"
+                  [class.text-white]="currentSheetName() === sheet"
+                  [class.border-blue-600]="currentSheetName() === sheet"
+                  [class.shadow-md]="currentSheetName() === sheet"
+                  [class.bg-white]="currentSheetName() !== sheet"
+                  [class.text-gray-700]="currentSheetName() !== sheet"
+                  [class.border-gray-300]="currentSheetName() !== sheet"
+                  [class.hover:bg-gray-50]="currentSheetName() !== sheet">
+                  {{ sheet }}
+                </button>
+              }
+            </div>
+          </div>
         }
       </div>
 
@@ -278,7 +305,6 @@ export class SpocDashboardComponent {
   dataService = inject(DataService);
   
   // State
-  // FIX: Default to 'All' so users see data immediately if their SPOC isn't found
   selectedSpoc = signal<string>('All'); 
   filterStatus = signal<'all' | 'checked-in' | 'pending'>('all');
   searchQuery = signal<string>('');
@@ -289,6 +315,10 @@ export class SpocDashboardComponent {
   // Backend Config
   sheetUrl = signal<string>('');
   isSyncing = signal<boolean>(false);
+  
+  // Sheet Selector State
+  availableSheets = this.dataService.availableSheets;
+  currentSheetName = this.dataService.sheetName;
 
   selectedAttendee = signal<Attendee | null>(null);
 
@@ -299,7 +329,6 @@ export class SpocDashboardComponent {
     // Robustly find unique SPOCs from loaded data
     const spocs = new Set<string>();
     this.allAttendees().forEach(a => {
-      // FIX: Filter out #N/A and other garbage from the selector list
       if (a.spocName && a.spocName !== 'Unassigned' && !a.spocName.includes('#N/A')) {
         spocs.add(a.spocName.trim());
       }
@@ -346,7 +375,6 @@ export class SpocDashboardComponent {
       }
       
       // Tertiary Sort: Name
-      // STRICT NULL CHECKS to prevent crashes
       const nameA = String(a.fullName || '').toLowerCase();
       const nameB = String(b.fullName || '').toLowerCase();
       return nameA.localeCompare(nameB);
@@ -410,16 +438,55 @@ export class SpocDashboardComponent {
   async syncData() {
     if (this.sheetUrl()) {
       this.isSyncing.set(true);
-      const success = await this.dataService.loadFromBackend(this.sheetUrl());
+      
+      // Step 1: Try to fetch metadata (List of Sheets)
+      const metaSuccess = await this.dataService.fetchSheetMetadata(this.sheetUrl());
+      
+      if (metaSuccess) {
+         const sheets = this.availableSheets();
+         // If we found sheets, load the first one automatically or keep current if valid
+         if (sheets.length > 0) {
+             let target = sheets[0];
+             // If we already had a sheet selected and it exists in the new list, keep it
+             const current = this.currentSheetName();
+             if (current && sheets.includes(current)) {
+                 target = current;
+             }
+             await this.selectSheet(target); 
+         } else {
+             // Fallback if metadata returned empty array
+             await this.performLoad();
+         }
+      } else {
+         // Step 2: Fallback for Legacy Backend (No metadata support)
+         await this.performLoad();
+      }
+      
+      this.isSyncing.set(false);
+    } else {
+      alert('Please enter the Google Sheet URL.');
+    }
+  }
+
+  // Helper to load specific sheet
+  async selectSheet(name: string) {
+      this.isSyncing.set(true);
+      const success = await this.dataService.loadFromBackend(this.sheetUrl(), name);
       this.isSyncing.set(false);
       
       if (success) {
         this.showToast.set(true);
         setTimeout(() => this.showToast.set(false), 3000);
       }
-    } else {
-      alert('Please enter the Google Sheet URL.');
-    }
+  }
+
+  // Helper for generic load (no specific sheet name known yet)
+  private async performLoad() {
+      const success = await this.dataService.loadFromBackend(this.sheetUrl());
+      if (success) {
+        this.showToast.set(true);
+        setTimeout(() => this.showToast.set(false), 3000);
+      }
   }
 
   getLanyardHex(color: string): string {

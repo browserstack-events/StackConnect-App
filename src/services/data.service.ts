@@ -26,7 +26,8 @@ export interface Attendee {
 export class DataService {
   // Main data store
   private rawAttendees = signal<Attendee[]>([]);
-  public sheetName = signal<string>(''); // Default empty to show "No Sheet Loaded" initially
+  public sheetName = signal<string>(''); // Current Sheet Name
+  public availableSheets = signal<string[]>([]); // List of all sheets in the doc
   
   // Configuration
   // REPLACE THIS STRING WITH YOUR ACTUAL DEPLOYED APPS SCRIPT WEB APP URL
@@ -99,6 +100,7 @@ export class DataService {
 
   private async syncChangeToBackend(payload: any) {
     const sheet = this.currentSheetUrl();
+    const sheetName = this.sheetName();
 
     if (!this.HARDCODED_SCRIPT_URL || !sheet) {
       console.warn('Backend not configured properly. Change is local only.');
@@ -106,7 +108,14 @@ export class DataService {
     }
 
     try {
-      await fetch(`${this.HARDCODED_SCRIPT_URL}?action=update&sheetUrl=${encodeURIComponent(sheet)}`, {
+      const params = new URLSearchParams({
+        action: 'update',
+        sheetUrl: sheet
+      });
+      // Important: Send the sheetName so backend updates the correct worksheet
+      if (sheetName) params.append('sheetName', sheetName);
+
+      await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
@@ -116,7 +125,26 @@ export class DataService {
     }
   }
 
-  async loadFromBackend(sheetUrl: string): Promise<boolean> {
+  async fetchSheetMetadata(sheetUrl: string): Promise<boolean> {
+    this.currentSheetUrl.set(sheetUrl);
+    if (!this.HARDCODED_SCRIPT_URL || !sheetUrl) return false;
+
+    try {
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=metadata&sheetUrl=${encodeURIComponent(sheetUrl)}`);
+      const json = await response.json();
+      
+      if (json.sheets && Array.isArray(json.sheets)) {
+        this.availableSheets.set(json.sheets);
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.warn('Metadata fetch failed (backend might not support it yet).', err);
+      return false;
+    }
+  }
+
+  async loadFromBackend(sheetUrl: string, sheetName?: string): Promise<boolean> {
     this.currentSheetUrl.set(sheetUrl);
 
     if (!this.HARDCODED_SCRIPT_URL || !sheetUrl) {
@@ -125,7 +153,13 @@ export class DataService {
     }
 
     try {
-      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=read&sheetUrl=${encodeURIComponent(sheetUrl)}`);
+      const params = new URLSearchParams({
+        action: 'read',
+        sheetUrl: sheetUrl
+      });
+      if (sheetName) params.append('sheetName', sheetName);
+
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`);
       const json = await response.json();
       
       console.log('Raw Backend Response:', json); // Debug log
@@ -133,7 +167,7 @@ export class DataService {
       if (json.sheetName) {
         this.sheetName.set(json.sheetName);
       } else {
-        this.sheetName.set('Unknown Sheet');
+        this.sheetName.set(sheetName || 'Unknown Sheet');
       }
 
       if (json.attendees) {
