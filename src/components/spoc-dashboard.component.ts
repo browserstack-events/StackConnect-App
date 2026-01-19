@@ -492,8 +492,11 @@ export class SpocDashboardComponent {
   getLanyardHex(color: string): string {
     const c = color?.toLowerCase() || '';
     if (c.includes('green')) return '#16a34a';
-    if (c.includes('yellow')) return '#ca8a04';
+    if (c.includes('yellow') || c.includes('gold')) return '#ca8a04';
     if (c.includes('red') || c.includes('crimson')) return '#dc2626';
+    if (c.includes('blue')) return '#2563eb';
+    if (c.includes('purple') || c.includes('violet')) return '#9333ea';
+    if (c.includes('orange')) return '#ea580c';
     if (c.includes('grey') || c.includes('gray')) return '#4b5563';
     return '#9ca3af';
   }
