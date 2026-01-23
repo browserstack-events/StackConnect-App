@@ -1,4 +1,4 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, signal, effect } from '@angular/core';
 
 export interface Attendee {
   id: string; // Internal UUID
@@ -13,12 +13,19 @@ export interface Attendee {
   attendance: boolean;
   spocName: string;
   spocEmail: string;
-  spocSlack?: string; // New field
+  spocSlack?: string; 
   checkInTime: Date | null;
   printStatus: string;
-  leadIntel?: string; // Column Q (Account Intel)
-  notes?: string; // New User Note Column
+  leadIntel?: string; 
+  notes?: string; 
   title?: string;
+}
+
+export interface SavedEvent {
+  id: string;
+  name: string; // This corresponds to the Worksheet Name
+  sheetUrl: string;
+  createdAt: number;
 }
 
 @Injectable({
@@ -30,11 +37,71 @@ export class DataService {
   public sheetName = signal<string>(''); // Current Sheet Name
   public availableSheets = signal<string[]>([]); // List of all sheets in the doc
   
+  // Event Management State
+  public savedEvents = signal<SavedEvent[]>([]);
+
   // Configuration
   // REPLACE THIS STRING WITH YOUR ACTUAL DEPLOYED APPS SCRIPT WEB APP URL
   private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsdkPGi3-rxDTWAJIHfK6O70GaPSmJmlqLYTlX8jxFE7MqOS7koul0uSKTynDXKOa/exec'; 
   
   private currentSheetUrl = signal<string>(''); 
+
+  constructor() {
+    this.loadEventsFromStorage();
+  }
+
+  // --- EVENT MANAGEMENT ---
+  private loadEventsFromStorage() {
+    const data = localStorage.getItem('stack_connect_events');
+    if (data) {
+      try {
+        this.savedEvents.set(JSON.parse(data));
+      } catch (e) {
+        console.error('Failed to parse saved events');
+      }
+    }
+  }
+
+  addEvent(name: string, sheetUrl: string) {
+    const newEvent: SavedEvent = {
+      id: crypto.randomUUID(),
+      name,
+      sheetUrl,
+      createdAt: Date.now()
+    };
+    this.savedEvents.update(prev => [newEvent, ...prev]);
+    this.persistEvents();
+    return newEvent;
+  }
+
+  removeEvent(id: string) {
+    this.savedEvents.update(prev => prev.filter(e => e.id !== id));
+    this.persistEvents();
+  }
+
+  getEventById(id: string): SavedEvent | undefined {
+    return this.savedEvents().find(e => e.id === id);
+  }
+
+  private persistEvents() {
+    localStorage.setItem('stack_connect_events', JSON.stringify(this.savedEvents()));
+  }
+
+  // --- MASTER LOGGING ---
+  async logEventToBackend(eventData: any) {
+    if (!this.HARDCODED_SCRIPT_URL) return;
+    try {
+      await fetch(this.HARDCODED_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify({
+          action: 'log_event',
+          ...eventData
+        })
+      });
+    } catch (e) {
+      console.error('Failed to log event to master sheet', e);
+    }
+  }
 
   getAttendees() {
     return this.rawAttendees.asReadonly();
@@ -98,7 +165,6 @@ export class DataService {
   }
   
   async addWalkInAttendee(data: { fullName: string; email: string; company: string; contact?: string }, sheetUrlOverride?: string): Promise<boolean> {
-    // Fallback to internal state if override not provided, but override allows adding before 'sync' click
     const sheet = sheetUrlOverride || this.currentSheetUrl();
     const sheetName = this.sheetName();
     
@@ -107,16 +173,11 @@ export class DataService {
       return false;
     }
 
-    // 1. Create a temporary ID
     const newId = crypto.randomUUID();
-
-    // 2. Split Full Name logic
     const nameParts = data.fullName.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
     
-    // 3. Optimistic UI Update
-    // We construct a new attendee object
     const newAttendee: Attendee = {
       id: newId,
       fullName: data.fullName,
@@ -125,27 +186,36 @@ export class DataService {
       contact: data.contact || '',
       firstName: firstName,
       lastName: lastName,
-      attendance: true, // Auto checked-in
+      attendance: true, 
       checkInTime: new Date(),
       segment: 'Walk-in',
-      spocName: 'Walk-in', // Will be updated by backend response
+      spocName: 'Walk-in', 
       spocEmail: '',
-      lanyardColor: 'Yellow', // Default per request
+      lanyardColor: 'Yellow', 
       printStatus: '',
       leadIntel: '',
       notes: ''
     };
     
-    this.rawAttendees.update(prev => [newAttendee, ...prev]);
+    // Only update local state if we are currently viewing this sheet
+    // If this is a standalone walk-in page, we might not have rawAttendees populated
+    if (this.currentSheetUrl() === sheet) {
+       this.rawAttendees.update(prev => [newAttendee, ...prev]);
+    }
 
     try {
       const params = new URLSearchParams({
         action: 'add',
         sheetUrl: sheet
       });
+      // Important: Use the stored sheet name for the event if available, otherwise default
+      // For walk-in page, we need to ensure we pass the correct sheet name
+      // The caller of this function should ensure sheetName is set in the service OR pass it (not implemented yet, relying on state)
+      // FIX: If we are in walk-in mode, 'this.sheetName()' might be empty if we didn't load data.
+      // However, the walk-in component loads the event metadata first.
+      
       if (sheetName) params.append('sheetName', sheetName);
 
-      // Construct payload with explicit split names and default color
       const payload = {
         ...data,
         firstName,
@@ -159,23 +229,21 @@ export class DataService {
       });
       const res = await response.json();
       
-      // Update optimistic data with backend calculated fields (SPOC, Print Status formulas)
-      if (res.status === 'success' && res.updatedFields) {
-         console.log('Backend returned calculated fields:', res.updatedFields);
-         this.rawAttendees.update(attendees => 
-           attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
-         );
-      } else if (res.status === 'success' && res.spoc) {
-         // Fallback for older script version
-         this.rawAttendees.update(attendees => 
-           attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
-         );
+      if (this.currentSheetUrl() === sheet) {
+        if (res.status === 'success' && res.updatedFields) {
+           this.rawAttendees.update(attendees => 
+             attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
+           );
+        } else if (res.status === 'success' && res.spoc) {
+           this.rawAttendees.update(attendees => 
+             attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
+           );
+        }
       }
 
       return res.status === 'success';
     } catch (err) {
       console.error('Failed to add walk-in:', err);
-      // Optional: Rollback UI update here if strict consistency needed
       return false;
     }
   }
@@ -196,7 +264,6 @@ export class DataService {
         action: 'update',
         sheetUrl: sheet
       });
-      // Important: Send the sheetName so backend updates the correct worksheet
       if (sheetName) params.append('sheetName', sheetName);
 
       await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`, {
@@ -209,27 +276,9 @@ export class DataService {
     }
   }
 
-  async fetchSheetMetadata(sheetUrl: string): Promise<boolean> {
-    this.currentSheetUrl.set(sheetUrl);
-    if (!this.HARDCODED_SCRIPT_URL || !sheetUrl) return false;
-
-    try {
-      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=metadata&sheetUrl=${encodeURIComponent(sheetUrl)}`);
-      const json = await response.json();
-      
-      if (json.sheets && Array.isArray(json.sheets)) {
-        this.availableSheets.set(json.sheets);
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.warn('Metadata fetch failed (backend might not support it yet).', err);
-      return false;
-    }
-  }
-
   async loadFromBackend(sheetUrl: string, sheetName?: string): Promise<boolean> {
     this.currentSheetUrl.set(sheetUrl);
+    if(sheetName) this.sheetName.set(sheetName);
 
     if (!this.HARDCODED_SCRIPT_URL || !sheetUrl) {
       alert('Configuration Error: Script URL is missing in code.');
@@ -246,13 +295,9 @@ export class DataService {
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`);
       const json = await response.json();
       
-      console.log('Raw Backend Response:', json); // Debug log
-
       if (json.sheetName) {
         this.sheetName.set(json.sheetName);
-      } else {
-        this.sheetName.set(sheetName || 'Unknown Sheet');
-      }
+      } 
 
       if (json.attendees) {
         this.parseJsonData(json.attendees);
@@ -268,6 +313,21 @@ export class DataService {
       return false;
     }
   }
+
+  async fetchSheetMetadata(sheetUrl: string): Promise<string[]> {
+    if (!this.HARDCODED_SCRIPT_URL) return [];
+    try {
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=metadata&sheetUrl=${encodeURIComponent(sheetUrl)}`);
+      const json = await response.json();
+      if (json.status === 'success' && Array.isArray(json.sheets)) {
+        return json.sheets;
+      }
+      return [];
+    } catch (e) {
+      console.error('Failed to fetch metadata', e);
+      return [];
+    }
+  }
   
   private cleanString(val: any): string {
     if (val === null || val === undefined) return '';
@@ -278,7 +338,6 @@ export class DataService {
 
   private parseJsonData(rows: any[]) {
     const parsedData: Attendee[] = rows.map(row => {
-      // HELPER: Robustly find a value using multiple possible keys (camelCase or Raw Header)
       const get = (...candidates: string[]) => {
         for (const key of candidates) {
           if (row[key] !== undefined && row[key] !== null) return row[key];
@@ -291,7 +350,6 @@ export class DataService {
         return undefined;
       };
 
-      // 1. Robust Date Parsing
       const checkInTimeRaw = get('checkInTime', 'Check-in Time', 'check_in_time', 'time');
       let checkInDate: Date | null = null;
       
@@ -319,7 +377,6 @@ export class DataService {
         }
       }
 
-      // 2. Robust Name Parsing
       let fName = this.cleanString(get('firstName', 'First Name', 'firstname'));
       let lName = this.cleanString(get('lastName', 'Last Name', 'lastname'));
       let full = this.cleanString(get('fullName', 'Full Name', 'fullname', 'Name'));
@@ -332,12 +389,9 @@ export class DataService {
       }
       if (!full) full = 'Unknown Attendee';
 
-      // 3. Fallback Lookups for other fields
-      // FIX: Restore 'spocName' as primary key if available (backend fix), fallback to 'SPOC of the day'
       let spocVal = this.cleanString(get('spocName', 'SPOC of the day', 'spocOfTheDay'));
       if (!spocVal) spocVal = 'Unassigned';
 
-      // Robust Attendance: Check for 'Status', 'Registration Status'
       const attendanceVal = get('attendance', 'Attendance', 'Status', 'Registration Status');
       const attendanceBool = attendanceVal === true || attendanceVal === 'TRUE' || String(attendanceVal).toLowerCase() === 'true' || String(attendanceVal).toLowerCase() === 'checked in';
 

@@ -158,70 +158,73 @@ import { Attendee } from '../services/data.service';
                 </div>
               </div>
 
-              <!-- Intel -->
-              <div class="border-t border-gray-100 pt-4">
-                <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Talking Points / Intel</h4>
-                <div class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-md border border-yellow-100">
-                  @if (attendee().leadIntel) {
-                    <p class="whitespace-pre-line">{{ attendee().leadIntel }}</p>
+              <!-- Intel & Notes (HIDDEN FOR ADMIN) -->
+              @if (!isAdmin()) {
+                <div class="border-t border-gray-100 pt-4">
+                  <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Talking Points / Intel</h4>
+                  <div class="bg-yellow-50 text-yellow-800 text-sm p-3 rounded-md border border-yellow-100">
+                    @if (attendee().leadIntel) {
+                      <p class="whitespace-pre-line">{{ attendee().leadIntel }}</p>
+                    } @else {
+                      <p class="italic text-gray-500">No specific intel available.</p>
+                    }
+                  </div>
+                </div>
+
+                <div class="border-t border-gray-100 pt-4">
+                  <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</h4>
+                  @if (!isEditingNote()) {
+                    @if (attendee().notes) {
+                      <div class="bg-blue-50 text-blue-900 text-sm p-3 rounded-md border border-blue-100 whitespace-pre-line">
+                         {{ attendee().notes }}
+                      </div>
+                    } @else {
+                      <div class="text-sm p-3 text-gray-500 italic">No notes added yet.</div>
+                    }
                   } @else {
-                    <p class="italic text-gray-500">No specific intel available.</p>
+                    <div>
+                      <textarea 
+                        rows="4"
+                        class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-gray-900"
+                        [ngModel]="noteText()"
+                        (ngModelChange)="noteText.set($event)"
+                        placeholder="Add your notes here..."></textarea>
+                    </div>
                   }
                 </div>
-              </div>
-
-              <!-- User Notes Section -->
-              <div class="border-t border-gray-100 pt-4">
-                <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Notes</h4>
-                @if (!isEditingNote()) {
-                  @if (attendee().notes) {
-                    <div class="bg-blue-50 text-blue-900 text-sm p-3 rounded-md border border-blue-100 whitespace-pre-line">
-                       {{ attendee().notes }}
-                    </div>
-                  } @else {
-                    <div class="text-sm p-3 text-gray-500 italic">No notes added yet.</div>
-                  }
-                } @else {
-                  <div>
-                    <textarea 
-                      rows="4"
-                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm bg-white text-gray-900"
-                      [ngModel]="noteText()"
-                      (ngModelChange)="noteText.set($event)"
-                      placeholder="Add your notes here..."></textarea>
-                  </div>
-                }
-              </div>
-            </div>
-
-            <!-- Modal Actions -->
-            <div class="mt-8 flex gap-3">
-              @if (!isEditingNote()) {
-                <button (click)="close.emit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
-                  Close
-                </button>
-                <button 
-                  (click)="onAddNoteClick()"
-                  class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm flex items-center justify-center gap-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  {{ attendee().notes ? 'Edit Note' : 'Add Note' }}
-                </button>
-              } @else {
-                <button (click)="cancelNoteEdit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
-                  Cancel
-                </button>
-                <button 
-                  (click)="saveNote()"
-                  class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 shadow-sm flex items-center justify-center gap-2">
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-                  Save Note
-                </button>
               }
             </div>
+
+            <!-- Modal Actions (HIDDEN FOR ADMIN) -->
+            @if (!isAdmin()) {
+              <div class="mt-8 flex gap-3">
+                @if (!isEditingNote()) {
+                  <button (click)="close.emit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
+                    Close
+                  </button>
+                  <button 
+                    (click)="onAddNoteClick()"
+                    class="flex-1 bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    {{ attendee().notes ? 'Edit Note' : 'Add Note' }}
+                  </button>
+                } @else {
+                  <button (click)="cancelNoteEdit()" class="flex-1 bg-white text-gray-700 border border-gray-300 font-semibold py-2 px-4 rounded-lg hover:bg-gray-50">
+                    Cancel
+                  </button>
+                  <button 
+                    (click)="saveNote()"
+                    class="flex-1 bg-green-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-green-700 shadow-sm flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save Note
+                  </button>
+                }
+              </div>
+            }
 
           </div>
         </div>
