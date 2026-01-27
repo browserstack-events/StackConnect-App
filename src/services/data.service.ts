@@ -139,7 +139,32 @@ export class DataService {
     }
   }
 
-  // --- NEW: Get event from master log ---
+  // --- MASTER LOG SYNC ---
+
+  async fetchAllEventsFromMasterLog(): Promise<void> {
+    if (!this.HARDCODED_SCRIPT_URL) return;
+    
+    try {
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=get_all_events`);
+      const data = await this.safeJson(response);
+      
+      if (data.status === 'success' && Array.isArray(data.events)) {
+        const events: SavedEvent[] = data.events.map((e: any) => ({
+           id: e.eventId,
+           name: e.eventName,
+           sheetUrl: e.sheetUrl,
+           createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now()
+        }));
+
+        // Update the signal with the master list (Single Source of Truth)
+        this.savedEvents.set(events);
+        this.persistEvents();
+      }
+    } catch (e) {
+       console.error('Failed to sync master events:', e);
+    }
+  }
+
   async getEventFromMasterLog(eventId: string): Promise<SavedEvent | null> {
     if (!this.HARDCODED_SCRIPT_URL) return null;
     
