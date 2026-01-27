@@ -170,9 +170,9 @@ import { DataService } from '../services/data.service';
               <div class="bg-gray-50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
                 <button type="button" 
                         (click)="saveEvent()"
-                        [disabled]="!newEventName || !newSheetUrl"
+                        [disabled]="!newEventName || !newSheetUrl || isSavingEvent()"
                         class="inline-flex w-full justify-center rounded-md border border-transparent bg-teal-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
-                  Create Event
+                  {{ isSavingEvent() ? 'Creating...' : 'Create Event' }}
                 </button>
                 <button type="button" (click)="isCreating.set(false)" class="mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                   Cancel
@@ -189,6 +189,7 @@ export class LandingPageComponent {
   dataService = inject(DataService);
   isCreating = signal(false);
   isLoadingSheets = signal(false);
+  isSavingEvent = signal(false);
   hasAttemptedFetch = signal(false);
   
   newEventName = '';
@@ -215,8 +216,12 @@ export class LandingPageComponent {
     }
   }
 
-  saveEvent() {
-    if (this.newEventName && this.newSheetUrl) {
+  async saveEvent() {
+    if (!this.newEventName || !this.newSheetUrl) return;
+    
+    this.isSavingEvent.set(true);
+    
+    try {
       const event = this.dataService.addEvent(this.newEventName, this.newSheetUrl);
       
       // Construct Links
@@ -225,17 +230,24 @@ export class LandingPageComponent {
       const spocLink = `${baseUrl}/event/${event.id}/spoc`;
       const walkinLink = `${baseUrl}/event/${event.id}/walkin`;
 
-      // Log to Master DB
-      this.dataService.logEventToBackend({
+      // Log to Master DB with event ID
+      await this.dataService.logEventToBackend({
+        eventId: event.id,           // CRITICAL: Include event ID
         eventName: event.name,
         sheetUrl: event.sheetUrl,
         deskLink,
         spocLink,
         walkinLink,
-        createdAt: new Date().toISOString()
+        createdAt: event.createdAt    // Use the timestamp from the event
       });
 
+      console.log('✓ Event created and logged to master sheet');
       this.isCreating.set(false);
+    } catch (error) {
+      console.error('Error creating event:', error);
+      alert('Failed to create event. Please try again.');
+    } finally {
+      this.isSavingEvent.set(false);
     }
   }
 
@@ -254,6 +266,19 @@ export class LandingPageComponent {
     
     navigator.clipboard.writeText(url).then(() => {
       alert('Link copied to clipboard!');
+    }).catch(() => {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        alert('Link copied to clipboard!');
+      } catch (err) {
+        alert('Failed to copy link. Please copy manually: ' + url);
+      }
+      document.body.removeChild(textArea);
     });
   }
 }

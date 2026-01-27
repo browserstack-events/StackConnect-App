@@ -1,6 +1,6 @@
-import { Component, inject, input, computed } from '@angular/core';
+import { Component, inject, input, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterModule } from '@angular/router';
+import { Router, RouterModule } from '@angular/router';
 import { DataService } from '../services/data.service';
 
 @Component({
@@ -8,48 +8,79 @@ import { DataService } from '../services/data.service';
   standalone: true,
   imports: [CommonModule, RouterModule],
   template: `
-    <div class="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      
-      <div class="max-w-3xl w-full text-center mb-12">
-        <h1 class="text-3xl font-bold text-gray-900">{{ eventName() }}</h1>
-        <p class="text-gray-500 mt-2">Select your role to access the dashboard</p>
-        <a routerLink="/" class="mt-4 inline-block text-sm text-teal-600 hover:underline">&larr; Back to Events</a>
-      </div>
+    <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl p-8 max-w-2xl w-full">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">{{ eventName() }}</h1>
+        <p class="text-gray-600 mb-8 text-center">Select your role to access the dashboard</p>
 
-      <div class="grid md:grid-cols-2 gap-8 w-full max-w-4xl">
-        <!-- Registration Desk -->
-        <a [routerLink]="['/event', eventId(), 'desk']" 
-           class="group bg-white p-8 rounded-2xl shadow-md border border-gray-200 hover:border-teal-500 hover:shadow-lg transition-all text-center flex flex-col items-center">
-           <div class="bg-teal-50 p-4 rounded-full group-hover:bg-teal-100 transition-colors mb-6">
-             <svg class="w-12 h-12 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-             </svg>
-           </div>
-           <h2 class="text-2xl font-bold text-gray-900 mb-2">Registration Desk</h2>
-           <p class="text-gray-500 text-sm">Fast check-in mode. Access to all attendees and status management.</p>
-        </a>
+        <div class="grid md:grid-cols-3 gap-4 mb-6">
+          <a
+            [routerLink]="['/event', id(), 'desk']"
+            class="block p-6 bg-green-50 border-2 border-green-200 rounded-lg hover:bg-green-100 hover:border-green-400 transition text-center"
+          >
+            <div class="text-4xl mb-3">📋</div>
+            <h3 class="text-lg font-semibold text-gray-800">Admin Desk</h3>
+            <p class="text-sm text-gray-600 mt-2">Full access to all attendees</p>
+          </a>
 
-        <!-- Sales SPOC -->
-        <a [routerLink]="['/event', eventId(), 'spoc']" 
-           class="group bg-white p-8 rounded-2xl shadow-md border border-gray-200 hover:border-blue-500 hover:shadow-lg transition-all text-center flex flex-col items-center">
-           <div class="bg-blue-50 p-4 rounded-full group-hover:bg-blue-100 transition-colors mb-6">
-             <svg class="w-12 h-12 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-             </svg>
-           </div>
-           <h2 class="text-2xl font-bold text-gray-900 mb-2">Sales SPOC</h2>
-           <p class="text-gray-500 text-sm">View your assigned attendees, track arrivals, and manage notes.</p>
-        </a>
+          <a
+            [routerLink]="['/event', id(), 'spoc']"
+            class="block p-6 bg-blue-50 border-2 border-blue-200 rounded-lg hover:bg-blue-100 hover:border-blue-400 transition text-center"
+          >
+            <div class="text-4xl mb-3">👤</div>
+            <h3 class="text-lg font-semibold text-gray-800">Sales SPOC</h3>
+            <p class="text-sm text-gray-600 mt-2">View your assigned leads</p>
+          </a>
+
+          <a
+            [routerLink]="['/event', id(), 'walkin']"
+            class="block p-6 bg-purple-50 border-2 border-purple-200 rounded-lg hover:bg-purple-100 hover:border-purple-400 transition text-center"
+          >
+            <div class="text-4xl mb-3">🚶</div>
+            <h3 class="text-lg font-semibold text-gray-800">Walk-in</h3>
+            <p class="text-sm text-gray-600 mt-2">Register new attendees</p>
+          </a>
+        </div>
+
+        <div class="text-center">
+          <a routerLink="/" class="text-blue-600 hover:text-blue-800 text-sm">
+            ← Back to Events
+          </a>
+        </div>
       </div>
     </div>
-  `
+  `,
+  styles: []
 })
-export class RoleSelectionComponent {
-  eventId = input.required<string>({ alias: 'id' });
-  dataService = inject(DataService);
-
+export class RoleSelectionComponent implements OnInit {
+  private dataService = inject(DataService);
+  private router = inject(Router);
+  
+  id = input.required<string>();
   eventName = computed(() => {
-    const event = this.dataService.getEventById(this.eventId());
-    return event ? event.name : 'Unknown Event';
+    const event = this.dataService.getEventById(this.id());
+    return event?.name || 'Event';
   });
+
+  async ngOnInit() {
+    const eventId = this.id();
+    
+    // Try to get from localStorage first
+    let event = this.dataService.getEventById(eventId);
+    
+    // If not found, fetch from master log
+    if (!event) {
+      console.log('Event not in localStorage, fetching from master log...');
+      event = await this.dataService.getEventFromMasterLog(eventId);
+    }
+    
+    if (!event) {
+      console.error('Event not found');
+      alert('Event not found. Please check the URL.');
+      this.router.navigate(['/']);
+      return;
+    }
+    
+    console.log('✓ Event loaded:', event.name);
+  }
 }

@@ -9,127 +9,168 @@ import { Router, RouterModule } from '@angular/router';
   standalone: true,
   imports: [CommonModule, FormsModule, RouterModule],
   template: `
-    <div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      <div class="sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="mx-auto h-16 w-16 bg-teal-600 rounded-full flex items-center justify-center shadow-lg">
-           <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-           </svg>
-        </div>
-        <h2 class="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">{{ eventName() }}</h2>
-        <p class="mt-2 text-center text-sm text-gray-600">
-          Walk-in Registration
-        </p>
-      </div>
+    <div class="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center p-4">
+      <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
+        <h1 class="text-3xl font-bold text-gray-800 mb-2 text-center">Walk-in Registration</h1>
+        <p class="text-gray-600 mb-6 text-center">{{ eventName() }}</p>
 
-      <div class="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10 border border-gray-100">
-          @if (!submitted()) {
-            <form class="space-y-6" (ngSubmit)="submit()">
-              <div>
-                <label for="name" class="block text-sm font-medium text-gray-700">Full Name</label>
-                <div class="mt-1">
-                  <input id="name" name="name" type="text" required [(ngModel)]="form.fullName" 
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border"
-                    placeholder="Jane Doe">
-                </div>
-              </div>
+        @if (!submitted()) {
+          <form (ngSubmit)="onSubmit()" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input
+                type="text"
+                [(ngModel)]="fullName"
+                name="fullName"
+                required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="John Doe"
+              />
+            </div>
 
-              <div>
-                <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
-                <div class="mt-1">
-                  <input id="email" name="email" type="email" required [(ngModel)]="form.email" 
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border"
-                    placeholder="jane@company.com">
-                </div>
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+              <input
+                type="email"
+                [(ngModel)]="email"
+                name="email"
+                required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="john@company.com"
+              />
+            </div>
 
-              <div>
-                <label for="company" class="block text-sm font-medium text-gray-700">Company / Organization</label>
-                <div class="mt-1">
-                  <input id="company" name="company" type="text" required [(ngModel)]="form.company" 
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border"
-                    placeholder="Acme Inc.">
-                </div>
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Company *</label>
+              <input
+                type="text"
+                [(ngModel)]="company"
+                name="company"
+                required
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Acme Inc"
+              />
+            </div>
 
-              <div>
-                <label for="contact" class="block text-sm font-medium text-gray-700">Phone Number (Optional)</label>
-                <div class="mt-1">
-                  <input id="contact" name="contact" type="text" [(ngModel)]="form.contact" 
-                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm p-3 border"
-                    placeholder="+1 (555) 000-0000">
-                </div>
-              </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+              <input
+                type="tel"
+                [(ngModel)]="contact"
+                name="contact"
+                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="+1234567890"
+              />
+            </div>
 
-              <div>
-                <button type="submit" [disabled]="isSubmitting() || !form.fullName || !form.email || !form.company"
-                  class="flex w-full justify-center rounded-md border border-transparent bg-teal-600 py-3 px-4 text-sm font-medium text-white shadow-sm hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 disabled:opacity-50 transition-colors">
-                  {{ isSubmitting() ? 'Registering...' : 'Complete Registration' }}
-                </button>
-              </div>
-            </form>
-          } @else {
-             <div class="text-center py-8">
-               <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-                 <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                 </svg>
-               </div>
-               <h3 class="text-lg font-medium leading-6 text-gray-900">Registration Successful!</h3>
-               <p class="mt-2 text-sm text-gray-500">
-                 You have been checked in. Please collect your badge.
-               </p>
-               <button (click)="reset()" class="mt-6 text-teal-600 hover:text-teal-500 font-medium text-sm">
-                 Register another person
-               </button>
-             </div>
-          }
+            <button
+              type="submit"
+              [disabled]="submitting() || !fullName().trim() || !email().trim() || !company().trim()"
+              class="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition text-lg"
+            >
+              {{ submitting() ? 'Submitting...' : 'Check In' }}
+            </button>
+          </form>
+        } @else {
+          <div class="text-center py-8">
+            <div class="text-6xl mb-4">✅</div>
+            <h2 class="text-2xl font-bold text-green-600 mb-2">Successfully Registered!</h2>
+            <p class="text-gray-600 mb-6">You have been checked in. Please collect your badge.</p>
+            <button
+              (click)="reset()"
+              class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition"
+            >
+              Register Another
+            </button>
+          </div>
+        }
+
+        <div class="mt-6 text-center">
+          <a [routerLink]="['/event', id()]" class="text-purple-600 hover:text-purple-800 text-sm">
+            ← Back to Role Selection
+          </a>
         </div>
       </div>
     </div>
-  `
+  `,
+  styles: []
 })
 export class WalkInPageComponent implements OnInit {
-  eventId = input.required<string>({ alias: 'id' });
-  dataService = inject(DataService);
-  router = inject(Router);
+  private dataService = inject(DataService);
+  private router = inject(Router);
 
-  eventName = signal('Loading Event...');
-  eventData: any = null;
-
-  form = { fullName: '', email: '', company: '', contact: '' };
-  isSubmitting = signal(false);
+  id = input.required<string>();
+  
+  fullName = signal('');
+  email = signal('');
+  company = signal('');
+  contact = signal('');
   submitted = signal(false);
+  submitting = signal(false);
+  
+  eventName = signal('Event');
+  private currentEvent: any = null;
 
-  ngOnInit() {
-    const event = this.dataService.getEventById(this.eventId());
-    if (event) {
-      this.eventName.set(event.name);
-      this.eventData = event;
-      // Pre-set the sheet name in service so writes go to correct place
-      this.dataService.sheetName.set(event.name);
-    } else {
-      this.eventName.set('Event Not Found');
+  async ngOnInit() {
+    const eventId = this.id();
+    
+    // Try to get from localStorage first
+    let event = this.dataService.getEventById(eventId);
+    
+    // If not found, fetch from master log
+    if (!event) {
+      console.log('Event not in localStorage, fetching from master log...');
+      event = await this.dataService.getEventFromMasterLog(eventId);
     }
+    
+    if (!event) {
+      console.error('Event not found');
+      alert('Event not found. Please check the URL.');
+      this.router.navigate(['/']);
+      return;
+    }
+    
+    this.currentEvent = event;
+    this.eventName.set(event.name);
+    console.log('✓ Event loaded for walk-in:', event.name);
   }
 
-  async submit() {
-    if (!this.eventData) return;
-    this.isSubmitting.set(true);
-    
-    const success = await this.dataService.addWalkInAttendee(this.form, this.eventData.sheetUrl);
-    
-    this.isSubmitting.set(false);
+  async onSubmit() {
+    if (!this.fullName().trim() || !this.email().trim() || !this.company().trim()) {
+      return;
+    }
+
+    if (!this.currentEvent) {
+      alert('Event not loaded. Please refresh the page.');
+      return;
+    }
+
+    this.submitting.set(true);
+
+    const success = await this.dataService.addWalkInAttendee(
+      {
+        fullName: this.fullName(),
+        email: this.email(),
+        company: this.company(),
+        contact: this.contact()
+      },
+      this.currentEvent.sheetUrl
+    );
+
+    this.submitting.set(false);
+
     if (success) {
       this.submitted.set(true);
     } else {
-      alert('Registration failed. Please try again or contact support.');
+      alert('Failed to register. Please try again.');
     }
   }
 
   reset() {
-    this.form = { fullName: '', email: '', company: '', contact: '' };
+    this.fullName.set('');
+    this.email.set('');
+    this.company.set('');
+    this.contact.set('');
     this.submitted.set(false);
   }
 }

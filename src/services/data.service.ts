@@ -1,8 +1,8 @@
-import { Injectable, signal, effect } from '@angular/core';
+import { Injectable, signal } from '@angular/core';
 
 export interface Attendee {
-  id: string; // Internal UUID
-  email: string; // Key for DB sync
+  id: string;
+  email: string;
   fullName: string;
   firstName: string;
   lastName: string;
@@ -13,17 +13,17 @@ export interface Attendee {
   attendance: boolean;
   spocName: string;
   spocEmail: string;
-  spocSlack?: string; 
+  spocSlack?: string;
   checkInTime: Date | null;
   printStatus: string;
-  leadIntel?: string; 
-  notes?: string; 
+  leadIntel?: string;
+  notes?: string;
   title?: string;
 }
 
 export interface SavedEvent {
   id: string;
-  name: string; // This corresponds to the Worksheet Name
+  name: string;
   sheetUrl: string;
   createdAt: number;
 }
@@ -32,25 +32,20 @@ export interface SavedEvent {
   providedIn: 'root'
 })
 export class DataService {
-  // Main data store
   private rawAttendees = signal<Attendee[]>([]);
-  public sheetName = signal<string>(''); // Current Sheet Name
-  public availableSheets = signal<string[]>([]); // List of all sheets in the doc
-  
-  // Event Management State
+  public sheetName = signal('');
+  public availableSheets = signal<string[]>([]);
   public savedEvents = signal<SavedEvent[]>([]);
-
-  // Configuration
-  // REPLACE THIS STRING WITH YOUR ACTUAL DEPLOYED APPS SCRIPT WEB APP URL
-  private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsdkPGi3-rxDTWAJIHfK6O70GaPSmJmlqLYTlX8jxFE7MqOS7koul0uSKTynDXKOa/exec'; 
   
-  private currentSheetUrl = signal<string>(''); 
+  private readonly HARDCODED_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxCsdkPGi3-rxDTWAJIHfK6O70GaPSmJmlqLYTlX8jxFE7MqOS7koul0uSKTynDXKOa/exec';
+  private currentSheetUrl = signal('');
 
   constructor() {
     this.loadEventsFromStorage();
   }
 
   // --- EVENT MANAGEMENT ---
+  
   private loadEventsFromStorage() {
     const data = localStorage.getItem('stack_connect_events');
     if (data) {
@@ -87,17 +82,70 @@ export class DataService {
     localStorage.setItem('stack_connect_events', JSON.stringify(this.savedEvents()));
   }
 
+  // --- NEW: Get event from master log ---
+  async getEventFromMasterLog(eventId: string): Promise<SavedEvent | null> {
+    if (!this.HARDCODED_SCRIPT_URL) return null;
+    
+    try {
+      const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?action=get_event&eventId=${eventId}`);
+      const data = await response.json();
+      
+      if (data.status === 'success' && data.event) {
+        const event: SavedEvent = {
+          id: data.event.id,
+          name: data.event.name,
+          sheetUrl: data.event.sheetUrl,
+          createdAt: typeof data.event.createdAt === 'string' 
+            ? new Date(data.event.createdAt).getTime() 
+            : data.event.createdAt
+        };
+        
+        // Store in localStorage for future use
+        const existing = this.savedEvents().find(e => e.id === event.id);
+        if (!existing) {
+          this.savedEvents.update(prev => [event, ...prev]);
+          this.persistEvents();
+        }
+        
+        return event;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Failed to fetch event from master log:', error);
+      return null;
+    }
+  }
+
+  // --- NEW: Helper to load event data ---
+  async loadEventData(sheetUrl: string, sheetName: string): Promise<boolean> {
+    return await this.loadFromBackend(sheetUrl, sheetName);
+  }
+
   // --- MASTER LOGGING ---
+  
   async logEventToBackend(eventData: any) {
     if (!this.HARDCODED_SCRIPT_URL) return;
     try {
-      await fetch(this.HARDCODED_SCRIPT_URL, {
+      const response = await fetch(this.HARDCODED_SCRIPT_URL, {
         method: 'POST',
         body: JSON.stringify({
           action: 'log_event',
-          ...eventData
+          eventId: eventData.eventId,
+          eventName: eventData.eventName,
+          sheetUrl: eventData.sheetUrl,
+          deskLink: eventData.deskLink,
+          spocLink: eventData.spocLink,
+          walkinLink: eventData.walkinLink,
+          createdAt: eventData.createdAt
         })
       });
+      const result = await response.json();
+      if (result.status === 'success') {
+        console.log('✓ Event logged to master sheet');
+      } else {
+        console.error('Master log error:', result.error);
+      }
     } catch (e) {
       console.error('Failed to log event to master sheet', e);
     }
@@ -106,19 +154,17 @@ export class DataService {
   getAttendees() {
     return this.rawAttendees.asReadonly();
   }
-  
-  // --- WRITE OPERATIONS ---
 
+  // --- WRITE OPERATIONS ---
+  
   updateLanyardColor(id: string, newColor: string) {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
 
-    // 1. Optimistic UI Update (Instant)
     this.rawAttendees.update(attendees =>
       attendees.map(a => a.id === id ? { ...a, lanyardColor: newColor } : a)
     );
 
-    // 2. Background Sync
     this.syncChangeToBackend({
       email: attendee.email,
       lanyardColor: newColor
@@ -128,20 +174,17 @@ export class DataService {
   toggleAttendance(id: string) {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
-
     const newStatus = !attendee.attendance;
     const newTime = newStatus ? new Date() : null;
 
-    // 1. Optimistic UI Update
     this.rawAttendees.update(attendees =>
-      attendees.map(a => a.id === id ? { 
-        ...a, 
+      attendees.map(a => a.id === id ? {
+        ...a,
         attendance: newStatus,
         checkInTime: newTime
       } : a)
     );
 
-    // 2. Background Sync
     this.syncChangeToBackend({
       email: attendee.email,
       attendance: newStatus
@@ -152,19 +195,20 @@ export class DataService {
     const attendee = this.rawAttendees().find(a => a.id === id);
     if (!attendee) return;
 
-    // 1. Optimistic UI Update
     this.rawAttendees.update(attendees =>
       attendees.map(a => a.id === id ? { ...a, notes: note } : a)
     );
 
-    // 2. Background Sync
     this.syncChangeToBackend({
       email: attendee.email,
       notes: note
     });
   }
-  
-  async addWalkInAttendee(data: { fullName: string; email: string; company: string; contact?: string }, sheetUrlOverride?: string): Promise<boolean> {
+
+  async addWalkInAttendee(
+    data: { fullName: string; email: string; company: string; contact?: string }, 
+    sheetUrlOverride?: string
+  ): Promise<boolean> {
     const sheet = sheetUrlOverride || this.currentSheetUrl();
     const sheetName = this.sheetName();
     
@@ -177,7 +221,7 @@ export class DataService {
     const nameParts = data.fullName.trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
-    
+
     const newAttendee: Attendee = {
       id: newId,
       fullName: data.fullName,
@@ -186,21 +230,19 @@ export class DataService {
       contact: data.contact || '',
       firstName: firstName,
       lastName: lastName,
-      attendance: true, 
+      attendance: true,
       checkInTime: new Date(),
       segment: 'Walk-in',
-      spocName: 'Walk-in', 
+      spocName: 'Walk-in',
       spocEmail: '',
-      lanyardColor: 'Yellow', 
+      lanyardColor: 'Yellow',
       printStatus: '',
       leadIntel: '',
       notes: ''
     };
-    
-    // Only update local state if we are currently viewing this sheet
-    // If this is a standalone walk-in page, we might not have rawAttendees populated
+
     if (this.currentSheetUrl() === sheet) {
-       this.rawAttendees.update(prev => [newAttendee, ...prev]);
+      this.rawAttendees.update(prev => [newAttendee, ...prev]);
     }
 
     try {
@@ -208,12 +250,7 @@ export class DataService {
         action: 'add',
         sheetUrl: sheet
       });
-      // Important: Use the stored sheet name for the event if available, otherwise default
-      // For walk-in page, we need to ensure we pass the correct sheet name
-      // The caller of this function should ensure sheetName is set in the service OR pass it (not implemented yet, relying on state)
-      // FIX: If we are in walk-in mode, 'this.sheetName()' might be empty if we didn't load data.
-      // However, the walk-in component loads the event metadata first.
-      
+
       if (sheetName) params.append('sheetName', sheetName);
 
       const payload = {
@@ -227,17 +264,18 @@ export class DataService {
         method: 'POST',
         body: JSON.stringify(payload)
       });
+
       const res = await response.json();
-      
+
       if (this.currentSheetUrl() === sheet) {
         if (res.status === 'success' && res.updatedFields) {
-           this.rawAttendees.update(attendees => 
-             attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
-           );
+          this.rawAttendees.update(attendees =>
+            attendees.map(a => a.id === newId ? { ...a, ...res.updatedFields } : a)
+          );
         } else if (res.status === 'success' && res.spoc) {
-           this.rawAttendees.update(attendees => 
-             attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
-           );
+          this.rawAttendees.update(attendees =>
+            attendees.map(a => a.id === newId ? { ...a, spocName: res.spoc } : a)
+          );
         }
       }
 
@@ -249,11 +287,11 @@ export class DataService {
   }
 
   // --- NETWORKING ---
-
+  
   private async syncChangeToBackend(payload: any) {
     const sheet = this.currentSheetUrl();
     const sheetName = this.sheetName();
-
+    
     if (!this.HARDCODED_SCRIPT_URL || !sheet) {
       console.warn('Backend not configured properly. Change is local only.');
       return;
@@ -278,8 +316,8 @@ export class DataService {
 
   async loadFromBackend(sheetUrl: string, sheetName?: string): Promise<boolean> {
     this.currentSheetUrl.set(sheetUrl);
-    if(sheetName) this.sheetName.set(sheetName);
-
+    if (sheetName) this.sheetName.set(sheetName);
+    
     if (!this.HARDCODED_SCRIPT_URL || !sheetUrl) {
       alert('Configuration Error: Script URL is missing in code.');
       return false;
@@ -294,10 +332,10 @@ export class DataService {
 
       const response = await fetch(`${this.HARDCODED_SCRIPT_URL}?${params.toString()}`);
       const json = await response.json();
-      
+
       if (json.sheetName) {
         this.sheetName.set(json.sheetName);
-      } 
+      }
 
       if (json.attendees) {
         this.parseJsonData(json.attendees);
@@ -306,6 +344,7 @@ export class DataService {
         alert('Google Script Error: ' + json.error);
         return false;
       }
+
       return false;
     } catch (err) {
       console.error('Fetch error:', err);
@@ -328,6 +367,8 @@ export class DataService {
       return [];
     }
   }
+
+  // --- DATA PARSING ---
   
   private cleanString(val: any): string {
     if (val === null || val === undefined) return '';
@@ -341,10 +382,8 @@ export class DataService {
       const get = (...candidates: string[]) => {
         for (const key of candidates) {
           if (row[key] !== undefined && row[key] !== null) return row[key];
-          
           const lowerKey = key.toLowerCase().trim();
           const found = Object.keys(row).find(k => k.toLowerCase().trim() === lowerKey);
-          
           if (found && row[found] !== undefined && row[found] !== null) return row[found];
         }
         return undefined;
@@ -364,28 +403,28 @@ export class DataService {
           const timeStr = ddmmyyyy[4] || '';
           
           if (day > 12) {
-             const isoDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}${timeStr.replace(/,/g, '')}`;
-             const d = new Date(isoDate);
-             if (!isNaN(d.getTime())) checkInDate = d;
+            const isoDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}${timeStr.replace(/,/g, '')}`;
+            const d = new Date(isoDate);
+            if (!isNaN(d.getTime())) checkInDate = d;
           } else {
-             const d = new Date(dStr);
-             if (!isNaN(d.getTime())) checkInDate = d;
-          }
-        } else {
             const d = new Date(dStr);
             if (!isNaN(d.getTime())) checkInDate = d;
+          }
+        } else {
+          const d = new Date(dStr);
+          if (!isNaN(d.getTime())) checkInDate = d;
         }
       }
 
       let fName = this.cleanString(get('firstName', 'First Name', 'firstname'));
       let lName = this.cleanString(get('lastName', 'Last Name', 'lastname'));
       let full = this.cleanString(get('fullName', 'Full Name', 'fullname', 'Name'));
-
+      
       if (!full && (fName || lName)) full = `${fName} ${lName}`.trim();
       if (full && !fName) {
-         const parts = full.split(' ');
-         fName = parts[0];
-         lName = parts.slice(1).join(' ');
+        const parts = full.split(' ');
+        fName = parts[0];
+        lName = parts.slice(1).join(' ');
       }
       if (!full) full = 'Unknown Attendee';
 
@@ -393,7 +432,10 @@ export class DataService {
       if (!spocVal) spocVal = 'Unassigned';
 
       const attendanceVal = get('attendance', 'Attendance', 'Status', 'Registration Status');
-      const attendanceBool = attendanceVal === true || attendanceVal === 'TRUE' || String(attendanceVal).toLowerCase() === 'true' || String(attendanceVal).toLowerCase() === 'checked in';
+      const attendanceBool = attendanceVal === true || 
+                             attendanceVal === 'TRUE' || 
+                             String(attendanceVal).toLowerCase() === 'true' || 
+                             String(attendanceVal).toLowerCase() === 'checked in';
 
       return {
         id: crypto.randomUUID(),

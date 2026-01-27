@@ -23,7 +23,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                </svg>
              </a>
              <div class="flex flex-col">
-               <h1 class="text-lg font-bold text-white leading-tight">{{ dataService.sheetName() }}</h1>
+               <h1 class="text-lg font-bold text-white leading-tight">{{ dataService.sheetName() || 'Loading...' }}</h1>
                <span class="text-xs text-white/80 font-medium uppercase tracking-wide">
                  {{ mode() === 'admin' ? 'Registration Desk' : 'SPOC Dashboard' }}
                </span>
@@ -210,11 +210,6 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                   }
 
                   @for (attendee of group.items; track attendee.id) {
-                    <!-- 
-                       NOTE: Logic for clickability.
-                       - If mode is SPOC: Row is clickable to open details.
-                       - If mode is ADMIN: Row is NOT clickable (no action).
-                    -->
                     <tr class="transition-colors border-b border-gray-100 last:border-0 hover:bg-gray-50" 
                         [class.bg-green-50]="attendee.attendance"
                         [class.cursor-pointer]="mode() === 'spoc'"
@@ -450,31 +445,45 @@ export class SpocDashboardComponent implements OnInit {
 
   allAttendees = this.dataService.getAttendees();
 
-  ngOnInit() {
-    this.initializeDashboard();
+  async ngOnInit() {
+    await this.initializeDashboard();
   }
 
   async initializeDashboard() {
-    const event = this.dataService.getEventById(this.eventId());
-    if (event) {
-        // If we have the event, load its data
-        this.isSyncing.set(true);
-        // We assume the event name is the Sheet Name as per requirements
-        await this.dataService.loadFromBackend(event.sheetUrl, event.name);
-        this.isSyncing.set(false);
-    } else {
-        // Event not found in local storage
-        alert('Event not found. Redirecting to home.');
-        this.router.navigate(['/']);
+    const eventId = this.eventId();
+    
+    // Try to get from localStorage first
+    let event = this.dataService.getEventById(eventId);
+    
+    // If not found, fetch from master log
+    if (!event) {
+      console.log('Event not in localStorage, fetching from master log...');
+      this.isSyncing.set(true);
+      event = await this.dataService.getEventFromMasterLog(eventId);
+      this.isSyncing.set(false);
     }
+    
+    if (!event) {
+      console.error('Event not found');
+      alert('Event not found. Please check the URL or create the event first.');
+      this.router.navigate(['/']);
+      return;
+    }
+
+    console.log('✓ Event loaded:', event.name);
+
+    // Load event data
+    this.isSyncing.set(true);
+    await this.dataService.loadFromBackend(event.sheetUrl, event.name);
+    this.isSyncing.set(false);
   }
 
   async syncData() {
     const event = this.dataService.getEventById(this.eventId());
-    if(event) {
-        this.isSyncing.set(true);
-        await this.dataService.loadFromBackend(event.sheetUrl, event.name);
-        this.isSyncing.set(false);
+    if (event) {
+      this.isSyncing.set(true);
+      await this.dataService.loadFromBackend(event.sheetUrl, event.name);
+      this.isSyncing.set(false);
     }
   }
 
@@ -541,7 +550,6 @@ export class SpocDashboardComponent implements OnInit {
       groups.get(key)!.push(a);
     });
     
-    // Convert to array and maybe sort by name? The list is already sorted by company.
     return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
   });
 
