@@ -325,16 +325,14 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
         </div>
 
         <!-- MOBILE GROUPED CARD VIEW (Visible on Mobile) -->
-        <div class="md:hidden space-y-6">
+<div class="md:hidden space-y-6">
           @for (group of groupedAttendees(); track group.name) {
             <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-               <!-- Explicit Group Header -->
                <div class="bg-gray-50 px-4 py-3 border-b border-gray-200 flex justify-between items-center sticky top-0 z-0">
                   <span class="font-bold text-gray-700 text-sm uppercase tracking-wide">{{ group.name }}</span>
                   <span class="text-xs font-semibold text-gray-500 bg-white border border-gray-200 px-2 py-0.5 rounded-full">{{ group.items.length }}</span>
                </div>
 
-               <!-- Items in Group -->
                @for (attendee of group.items; track attendee.id; let last = $last) {
                   <div class="relative p-4 flex items-center justify-between group transition-colors hover:bg-gray-50"
                        [class.border-b]="!last"
@@ -342,46 +340,51 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                        [class.cursor-pointer]="mode() === 'spoc'"
                        (click)="mode() === 'spoc' ? openDetail(attendee) : null">
                        
-                       <!-- Left Side -->
-                       <div class="flex items-center gap-3 min-w-0">
-                          <!-- Avatar -->
-                          <div class="flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                               [class.bg-teal-500]="mode() === 'admin'"
-                               [class.bg-blue-600]="mode() === 'spoc'">
-                            {{ attendee.firstName.charAt(0) }}{{ attendee.lastName.charAt(0) }}
-                          </div>
+                       <div class="flex flex-col gap-1.5 min-w-0 flex-1 mr-3">
                           
-                          <!-- Info -->
-                          <div class="min-w-0">
-                             <h4 class="text-sm font-bold text-gray-900 truncate leading-tight flex items-center gap-2">
-                                {{ attendee.fullName }}
-                                @if (mode() === 'spoc' && attendee.linkedin) {
-                                  <a [href]="attendee.linkedin" target="_blank" (click)="$event.stopPropagation()" class="text-[#0077b5]">
-                                    <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
-                                  </a>
-                                }
-                             </h4>
-                             
-                             @if (mode() === 'spoc') {
-                                <p class="text-xs text-gray-600 truncate font-medium">{{ attendee.title ? attendee.company + ' - ' + attendee.title : attendee.company }}</p>
+                          <h4 class="text-sm font-bold text-gray-900 truncate leading-tight flex items-center gap-2">
+                             {{ attendee.fullName }}
+                             @if (mode() === 'spoc' && attendee.linkedin) {
+                               <a [href]="attendee.linkedin" target="_blank" (click)="$event.stopPropagation()" class="text-[#0077b5]">
+                                 <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+                               </a>
                              }
-                             
-                             <div class="flex flex-wrap gap-2 mt-1">
-                               <span class="text-[10px] text-gray-400 border border-gray-100 rounded px-1">{{ attendee.lanyardColor }}</span>
-                               
-                               @if (mode() === 'admin' && attendee.printStatus) {
-                                  <span class="text-[10px] font-bold rounded px-1 flex items-center gap-1"
-                                        [class]="attendee.printStatus === 'Not Printed' ? 'text-red-700 bg-red-50 border border-red-100' : 'text-purple-700 bg-purple-50 border border-purple-100'">
-                                    <svg class="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                                    {{ attendee.printStatus }}
-                                  </span>
-                               }
-                             </div>
+                          </h4>
+                          
+                          @if (mode() === 'spoc') {
+                             <p class="text-xs text-gray-600 truncate font-medium">{{ attendee.title ? attendee.company + ' - ' + attendee.title : attendee.company }}</p>
+                          }
+                          
+                          <div class="flex flex-wrap gap-2 mt-0.5">
+                            
+                            <span class="text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 flex items-center gap-1.5">
+                              <span class="w-2 h-2 rounded-full ring-1 ring-inset ring-black/10" 
+                                    [style.background-color]="getLanyardHex(attendee.lanyardColor)"></span>
+                              {{ attendee.lanyardColor }}
+                            </span>
+                            
+                            @if (mode() === 'admin' && attendee.printStatus) {
+                               <span class="text-[10px] font-bold rounded px-1.5 py-0.5 flex items-center gap-1 border"
+                                     [class]="attendee.printStatus === 'Not Printed' ? 'text-red-700 bg-red-50 border-red-100' : 'text-purple-700 bg-purple-50 border-purple-100'">
+                                 <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                                 </svg>
+                                 {{ attendee.printStatus }}
+                               </span>
+                            }
+
+                            @if (attendee.spocName && attendee.spocName !== 'Unassigned') {
+                              <span class="text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-100 rounded px-1.5 py-0.5 flex items-center gap-1">
+                                <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                {{ attendee.spocName }}
+                              </span>
+                            }
                           </div>
                        </div>
 
-                       <!-- Right Side -->
-                       <div class="flex flex-col items-end gap-1 flex-shrink-0 ml-2">
+                       <div class="flex flex-col items-end gap-1 flex-shrink-0">
                           @if (mode() === 'admin') {
                               <button (click)="$event.stopPropagation(); handleAttendanceToggle(attendee.id)"
                                       class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-teal-600 focus:ring-offset-2"
@@ -523,11 +526,11 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   async ngOnInit() {
     await this.initializeDashboard();
 
-    // Auto-sync every 5 minutes (300,000 ms)
+    // Auto-sync every 1 minutes (300,000 ms)
     this.syncInterval = setInterval(() => {
       console.log('Auto-syncing data...');
       this.syncData();
-    }, 5 * 60 * 1000);
+    }, 1 * 60 * 1000);
   }
 
   ngOnDestroy() {
