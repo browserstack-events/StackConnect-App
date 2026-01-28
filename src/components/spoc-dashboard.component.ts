@@ -151,9 +151,11 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
           </div>
         </div>
 
-        <!-- Stats - Only show for SPOC -->
-        @if (mode() === 'spoc') {
-          <div class="grid grid-cols-3 md:grid-cols-4 gap-4">
+        <!-- Stats - Only show for SPOC and Desktop Admin view -->
+        @if (mode() === 'spoc' || mode() === 'admin') {
+          <div class="gap-4" 
+               [ngClass]="mode() === 'admin' ? 'hidden md:grid md:grid-cols-4' : 'grid grid-cols-3 md:grid-cols-4'">
+            
             <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
               <p class="text-xs font-semibold text-gray-500 uppercase">Total</p>
               <p class="mt-1 text-2xl font-bold text-gray-900">{{ stats().total }}</p>

@@ -1,8 +1,8 @@
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, inject, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
-import { DataService } from '../services/data.service';
+import { DataService, SavedEvent } from '../services/data.service';
 
 @Component({
   selector: 'app-landing-page',
@@ -11,13 +11,11 @@ import { DataService } from '../services/data.service';
   template: `
     <div class="min-h-screen bg-gray-50 font-sans text-slate-800 pb-20">
       
-      <!-- Teal Header -->
       <div class="bg-[#139C84] pt-20 pb-24 text-center px-4 shadow-sm">
          <h1 class="text-5xl font-bold text-white tracking-tight mb-2">StackConnect</h1>
          <p class="text-teal-100 text-lg font-medium">Multi-Event Management Platform</p>
       </div>
 
-      <!-- Main Action Floating Button -->
       <div class="flex justify-center -mt-7 mb-12 relative z-10">
         <button (click)="openModal()" class="bg-[#f59e0b] hover:bg-[#d97706] text-white font-bold py-3.5 px-8 rounded-full shadow-lg transition-transform hover:scale-105 active:scale-95 flex items-center gap-2 text-lg">
            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -25,88 +23,137 @@ import { DataService } from '../services/data.service';
         </button>
       </div>
 
-      <!-- Active Events Section -->
-      <div class="max-w-6xl mx-auto px-6">
-        <div class="flex items-center gap-2 mb-6 text-[#139C84] font-bold text-xl">
-           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-           Active Events
+      <div class="max-w-6xl mx-auto px-6 space-y-12">
+        
+        <div>
+          <div class="flex items-center gap-2 mb-6 text-[#139C84] font-bold text-xl border-b border-gray-200 pb-2">
+             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+             Active Events
+             <span class="text-sm font-normal text-gray-500 ml-2">({{ activeEvents().length }})</span>
+          </div>
+
+          @if (activeEvents().length === 0) {
+             <div class="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
+               <p>No active events found.</p>
+               <p class="text-sm mt-1">Click the button above to create your first event.</p>
+             </div>
+          }
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+             @for (event of activeEvents(); track event.id) {
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-all relative group">
+                   
+                   <button (click)="toggleArchive(event, true); $event.stopPropagation()" 
+                           class="absolute top-4 right-4 text-gray-300 hover:text-orange-500 transition-colors p-1" 
+                           title="Archive Event">
+                      <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                      </svg>
+                   </button>
+
+                   <div class="pr-8 cursor-pointer" (click)="openEvent(event.id)">
+                     <h3 class="text-xl font-bold text-gray-800 mb-1 leading-tight">{{ event.name }}</h3>
+                     
+                     <div class="flex items-center gap-4 text-sm text-gray-500 mb-6">
+                       <span>Created {{ event.createdAt | date:'mediumDate' }}</span>
+                       @if (event.eventDate) {
+                         <span class="text-teal-600 font-medium bg-teal-50 px-2 py-0.5 rounded border border-teal-100 flex items-center gap-1">
+                           📅 {{ event.eventDate | date:'mediumDate' }}
+                         </span>
+                       }
+                     </div>
+                   </div>
+                   
+                   <div class="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                      <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Share Links</p>
+                      
+                      <div class="flex items-center justify-between group/link">
+                         <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-teal-400"></span>
+                            <span class="text-gray-600 font-medium text-sm">Admin Desk</span>
+                         </div>
+                         <button (click)="copyLink('desk', event.id)" class="text-xs text-teal-600 font-medium border border-teal-200 bg-white px-3 py-1 rounded hover:bg-teal-50 transition-colors">
+                            {{ copiedId() === event.id + '_desk' ? 'Copied!' : 'Copy Link' }}
+                         </button>
+                      </div>
+
+                      <div class="flex items-center justify-between group/link">
+                         <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-blue-400"></span>
+                            <span class="text-gray-600 font-medium text-sm">Sales SPOC</span>
+                         </div>
+                         <button (click)="copyLink('spoc', event.id)" class="text-xs text-blue-600 font-medium border border-blue-200 bg-white px-3 py-1 rounded hover:bg-blue-50 transition-colors">
+                            {{ copiedId() === event.id + '_spoc' ? 'Copied!' : 'Copy Link' }}
+                         </button>
+                      </div>
+
+                      <div class="flex items-center justify-between group/link">
+                         <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-400"></span>
+                            <span class="text-gray-600 font-medium text-sm">Walk-in</span>
+                         </div>
+                         <button (click)="copyLink('walkin', event.id)" class="text-xs text-amber-600 font-medium border border-amber-200 bg-white px-3 py-1 rounded hover:bg-amber-50 transition-colors">
+                            {{ copiedId() === event.id + '_walkin' ? 'Copied!' : 'Copy Link' }}
+                         </button>
+                      </div>
+                   </div>
+
+                   <div class="flex justify-end pt-2 border-t border-gray-100">
+                      <button (click)="openEvent(event.id)" class="text-[#139C84] font-semibold hover:text-[#0d7d69] flex items-center gap-1 text-sm transition-colors">
+                         Open Dashboard <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                      </button>
+                   </div>
+                </div>
+             }
+          </div>
         </div>
 
-        @if (dataService.savedEvents().length === 0) {
-           <div class="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300 text-gray-400">
-             <p>No active events found.</p>
-             <p class="text-sm mt-1">Click the button above to create your first event.</p>
-           </div>
+        @if (pastEvents().length > 0) {
+          <div class="border-t border-gray-200 pt-8">
+            <button (click)="isPastExpanded.set(!isPastExpanded())" 
+                    class="flex items-center gap-2 text-gray-500 font-bold text-lg hover:text-gray-700 transition-colors w-full group">
+               <svg class="w-5 h-5 transition-transform duration-200" [class.rotate-90]="!isPastExpanded()" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+               </svg>
+               Past Events ({{ pastEvents().length }})
+            </button>
+
+            @if (isPastExpanded()) {
+              <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in">
+                 @for (event of pastEvents(); track event.id) {
+                    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 flex flex-col gap-3 opacity-80 hover:opacity-100 transition-all hover:bg-white hover:shadow-sm group">
+                       <div class="flex justify-between items-start">
+                          <div>
+                             <h4 class="font-bold text-gray-700">{{ event.name }}</h4>
+                             <p class="text-xs text-gray-500">{{ event.eventDate ? (event.eventDate | date:'mediumDate') : (event.createdAt | date:'mediumDate') }}</p>
+                          </div>
+                          
+                          <button (click)="toggleArchive(event, false); $event.stopPropagation()" 
+                                  class="text-gray-300 hover:text-teal-600 transition-colors p-1" 
+                                  title="Move to Active">
+                             <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                             </svg>
+                          </button>
+                       </div>
+                       
+                       <div class="flex gap-2 mt-auto pt-2 border-t border-gray-200/50">
+                          <button (click)="openEvent(event.id)" class="flex-1 text-xs bg-white border border-gray-300 py-1.5 rounded text-gray-600 hover:bg-gray-50 font-medium">View</button>
+                          <button (click)="deleteEvent(event.id)" class="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded transition-colors">Delete</button>
+                       </div>
+                    </div>
+                 }
+              </div>
+            }
+          </div>
         }
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-           @for (event of dataService.savedEvents(); track event.id) {
-              <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hover:shadow-md transition-shadow relative group">
-                 
-                 <!-- Delete Button -->
-                 <button (click)="deleteEvent(event.id); $event.stopPropagation()" class="absolute top-4 right-4 text-gray-300 hover:text-red-400 transition-colors p-1" title="Delete Event">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                 </button>
-
-                 <div class="pr-8 cursor-pointer" (click)="openEvent(event.id)">
-                   <h3 class="text-xl font-bold text-gray-800 mb-1 leading-tight">{{ event.name }}</h3>
-                   <p class="text-sm text-gray-500 mb-6">Created {{ event.createdAt | date:'mediumDate' }}</p>
-                 </div>
-                 
-                 <div class="space-y-3 mb-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                    <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Share Links</p>
-                    
-                    <!-- Admin Link -->
-                    <div class="flex items-center justify-between group/link">
-                       <div class="flex items-center gap-2">
-                          <span class="w-2 h-2 rounded-full bg-teal-400"></span>
-                          <span class="text-gray-600 font-medium text-sm">Admin Desk</span>
-                       </div>
-                       <button (click)="copyLink('desk', event.id)" class="text-xs text-teal-600 font-medium border border-teal-200 bg-white px-3 py-1 rounded hover:bg-teal-50 transition-colors">
-                          {{ copiedId() === event.id + '_desk' ? 'Copied!' : 'Copy Link' }}
-                       </button>
-                    </div>
-
-                    <!-- SPOC Link -->
-                    <div class="flex items-center justify-between group/link">
-                       <div class="flex items-center gap-2">
-                          <span class="w-2 h-2 rounded-full bg-blue-400"></span>
-                          <span class="text-gray-600 font-medium text-sm">Sales SPOC</span>
-                       </div>
-                       <button (click)="copyLink('spoc', event.id)" class="text-xs text-blue-600 font-medium border border-blue-200 bg-white px-3 py-1 rounded hover:bg-blue-50 transition-colors">
-                          {{ copiedId() === event.id + '_spoc' ? 'Copied!' : 'Copy Link' }}
-                       </button>
-                    </div>
-
-                    <!-- Walk-in Link -->
-                    <div class="flex items-center justify-between group/link">
-                       <div class="flex items-center gap-2">
-                          <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                          <span class="text-gray-600 font-medium text-sm">Walk-in</span>
-                       </div>
-                       <button (click)="copyLink('walkin', event.id)" class="text-xs text-amber-600 font-medium border border-amber-200 bg-white px-3 py-1 rounded hover:bg-amber-50 transition-colors">
-                          {{ copiedId() === event.id + '_walkin' ? 'Copied!' : 'Copy Link' }}
-                       </button>
-                    </div>
-                 </div>
-
-                 <div class="flex justify-end pt-2 border-t border-gray-100">
-                    <button (click)="openEvent(event.id)" class="text-[#139C84] font-semibold hover:text-[#0d7d69] flex items-center gap-1 text-sm transition-colors">
-                       Open Dashboard <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
-                    </button>
-                 </div>
-              </div>
-           }
-        </div>
       </div>
 
-      <!-- Create Modal -->
       @if (isModalOpen()) {
         <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
-           <!-- Backdrop -->
            <div class="absolute inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" (click)="closeModal()"></div>
            
-           <!-- Modal Panel -->
            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-fade-in-up">
               <div class="p-8">
                  <div class="flex items-center gap-3 mb-6">
@@ -117,7 +164,6 @@ import { DataService } from '../services/data.service';
                  </div>
 
                  <div class="space-y-6">
-                    <!-- URL Input -->
                     <div>
                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Google Sheet URL</label>
                        <div class="flex gap-2">
@@ -137,7 +183,6 @@ import { DataService } from '../services/data.service';
                        <p class="text-xs text-gray-400 mt-1.5">Paste the full URL of your Google Sheet then click Fetch.</p>
                     </div>
 
-                    <!-- Event Name / Worksheet Select -->
                     <div>
                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Event Name (Worksheet Name)</label>
                        @if (fetchedSheets().length > 0) {
@@ -184,6 +229,7 @@ export class LandingPageComponent implements OnInit {
   router = inject(Router);
 
   isModalOpen = signal(false);
+  isPastExpanded = signal(false);
   
   // Form Signals
   newSheetUrl = signal('');
@@ -196,9 +242,27 @@ export class LandingPageComponent implements OnInit {
   // UI Feedback
   copiedId = signal<string | null>(null);
 
+  // Sorting: Active Events (Not archived, Newest First)
+  activeEvents = computed(() => 
+    this.dataService.savedEvents()
+      .filter(e => !e.archived)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  );
+
+  // Sorting: Past Events (Archived, Newest First)
+  pastEvents = computed(() => 
+    this.dataService.savedEvents()
+      .filter(e => e.archived)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  );
+
   ngOnInit() {
      // Fetch all active events from master log on load
      this.dataService.fetchAllEventsFromMasterLog();
+  }
+
+  toggleArchive(event: SavedEvent, status: boolean) {
+    this.dataService.updateEvent(event.id, { archived: status });
   }
 
   openModal() {

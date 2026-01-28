@@ -27,6 +27,9 @@ export interface SavedEvent {
   name: string;
   sheetUrl: string;
   createdAt: number;
+  // NEW FIELDS for lifecycle management
+  archived?: boolean;
+  eventDate?: string;
 }
 
 @Injectable({
@@ -112,11 +115,21 @@ export class DataService {
       id: crypto.randomUUID(),
       name,
       sheetUrl,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      archived: false, // Default
+      eventDate: ''    // Default
     };
     this.savedEvents.update(prev => [newEvent, ...prev]);
     this.persistEvents();
     return newEvent;
+  }
+
+  // NEW: General update method for events (used for archiving and setting dates)
+  updateEvent(id: string, updates: Partial<SavedEvent>) {
+    this.savedEvents.update(events => 
+      events.map(e => e.id === id ? { ...e, ...updates } : e)
+    );
+    this.persistEvents();
   }
 
   removeEvent(id: string) {
@@ -149,12 +162,21 @@ export class DataService {
       const data = await this.safeJson(response);
       
       if (data.status === 'success' && Array.isArray(data.events)) {
-        const events: SavedEvent[] = data.events.map((e: any) => ({
-           id: e.eventId,
-           name: e.eventName,
-           sheetUrl: e.sheetUrl,
-           createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now()
-        }));
+        // Merge with local state to preserve 'archived' and 'eventDate' if they exist locally
+        const localMap = new Map(this.savedEvents().map(e => [e.id, e]));
+
+        const events: SavedEvent[] = data.events.map((e: any) => {
+           const local = localMap.get(e.eventId);
+           return {
+             id: e.eventId,
+             name: e.eventName,
+             sheetUrl: e.sheetUrl,
+             createdAt: e.createdAt ? new Date(e.createdAt).getTime() : Date.now(),
+             // Preserve local metadata if it exists
+             archived: local?.archived || false,
+             eventDate: local?.eventDate || ''
+           };
+        });
 
         // Update the signal with the master list (Single Source of Truth)
         this.savedEvents.set(events);
@@ -173,21 +195,29 @@ export class DataService {
       const data = await this.safeJson(response);
       
       if (data.status === 'success' && data.event) {
+        // Check local first for metadata
+        const local = this.savedEvents().find(e => e.id === data.event.id);
+
         const event: SavedEvent = {
           id: data.event.id,
           name: data.event.name,
           sheetUrl: data.event.sheetUrl,
           createdAt: typeof data.event.createdAt === 'string' 
             ? new Date(data.event.createdAt).getTime() 
-            : data.event.createdAt
+            : data.event.createdAt,
+          // Preserve local metadata if it exists
+          archived: local?.archived || false,
+          eventDate: local?.eventDate || ''
         };
         
         // Store in localStorage for future use
-        const existing = this.savedEvents().find(e => e.id === event.id);
-        if (!existing) {
+        if (!local) {
           this.savedEvents.update(prev => [event, ...prev]);
-          this.persistEvents();
+        } else {
+          // Update existing with potential new data from server, keeping local flags
+          this.savedEvents.update(prev => prev.map(e => e.id === event.id ? event : e));
         }
+        this.persistEvents();
         
         return event;
       }
