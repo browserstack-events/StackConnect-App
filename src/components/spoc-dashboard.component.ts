@@ -154,7 +154,7 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
         <!-- Stats - Only show for SPOC and Desktop Admin view -->
         @if (mode() === 'spoc' || mode() === 'admin') {
           <div class="gap-4" 
-               [ngClass]="mode() === 'admin' ? 'hidden md:grid md:grid-cols-4' : 'grid grid-cols-3 md:grid-cols-4'">
+               [ngClass]="mode() === 'admin' ? 'grid grid-cols-3 md:grid-cols-4' : 'grid grid-cols-3 md:grid-cols-4'">
             
             <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
               <p class="text-xs font-semibold text-gray-500 uppercase">Total</p>
@@ -358,13 +358,17 @@ import { AttendeeDetailComponent } from './attendee-detail.component';
                           }
                           
                           <div class="flex flex-wrap gap-2 mt-0.5">
-                            
-                            <span class="text-[10px] font-medium text-gray-600 bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 flex items-center gap-1.5">
+                          
+                            <span class="text-[10px] font-bold rounded px-2 py-0.5 flex items-center gap-1.5 border"
+                                  [style.background-color]="getLanyardHex(attendee.lanyardColor) + '20'"
+                                  [style.color]="getLanyardHex(attendee.lanyardColor)"
+                                  [style.border-color]="getLanyardHex(attendee.lanyardColor) + '40'">
                               <span class="w-2 h-2 rounded-full ring-1 ring-inset ring-black/10" 
                                     [style.background-color]="getLanyardHex(attendee.lanyardColor)"></span>
                               {{ attendee.lanyardColor }}
                             </span>
                             
+                  
                             @if (mode() === 'admin' && attendee.printStatus) {
                                <span class="text-[10px] font-bold rounded px-1.5 py-0.5 flex items-center gap-1 border"
                                      [class]="attendee.printStatus === 'Not Printed' ? 'text-red-700 bg-red-50 border-red-100' : 'text-purple-700 bg-purple-50 border-purple-100'">
