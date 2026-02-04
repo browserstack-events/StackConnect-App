@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { DataService, Attendee } from '../services/data.service';
 import { AttendeeDetailComponent } from './attendee-detail.component';
-import {DummyAuthService} from "../services/dummy-auth.service";
+import { DummyAuthService } from "../services/dummy-auth.service";
 
 @Component({
   selector: 'app-spoc-dashboard',
@@ -519,16 +519,16 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   router = inject(Router);
 
   // Inputs mapped from Route Data/Params
-  mode = input.required<'admin' | 'spoc'>(); 
+  mode = input.required<'admin' | 'spoc'>();
   eventId = input.required<string>({ alias: 'id' });
-  
+
   // State
-  selectedSpoc = signal<string>('All'); 
+  selectedSpoc = signal<string>('All');
   filterStatus = signal<'all' | 'checked-in' | 'pending'>('all');
   searchQuery = signal<string>('');
-  
+
   isSyncing = signal<boolean>(false);
-  
+
   selectedAttendee = signal<Attendee | null>(null);
 
   // Walk-in State
@@ -536,13 +536,8 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   isAddingWalkIn = signal(false);
   walkInForm = { fullName: '', email: '', company: '', contact: '' };
 
-  defaultSpocName = signal('');
-  defaultSpocEmail = signal('');
-  defaultSpocSlack = signal('');
-  isEditingSpoc = signal(false);
-
   allAttendees = this.dataService.getAttendees();
-  
+
   private syncInterval: any;
 
   constructor() {
@@ -553,20 +548,20 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     effect(() => {
       const all = this.allAttendees();
       const selected = this.selectedAttendee();
-      
+
       if (selected && all.length > 0) {
         // Try to find the same attendee in the new list
         // First by ID (if stable)
         let match = all.find(a => a.id === selected.id);
-        
+
         // Fallback to email if ID changed (e.g. parser regeneration)
         if (!match && selected.email) {
-           match = all.find(a => a.email.toLowerCase() === selected.email.toLowerCase());
+          match = all.find(a => a.email.toLowerCase() === selected.email.toLowerCase());
         }
 
         if (match && match !== selected) {
-           // Update the reference silently so the modal stays open with fresh data
-           this.selectedAttendee.set(match);
+          // Update the reference silently so the modal stays open with fresh data
+          this.selectedAttendee.set(match);
         }
       }
     });
@@ -574,13 +569,6 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
   async ngOnInit() {
     await this.initializeDashboard();
-
-    const event = this.dataService.getEventById(this.eventId());
-    if (event) {
-      this.defaultSpocName.set(event.defaultSpocName || '');
-      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
-      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
-    }
 
     // Auto-sync every 1 minutes (300,000 ms)
     this.syncInterval = setInterval(() => {
@@ -597,10 +585,10 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
   async initializeDashboard() {
     const eventId = this.eventId();
-    
+
     // Try to get from localStorage first
     let event = this.dataService.getEventById(eventId);
-    
+
     // If not found, fetch from master log
     if (!event) {
       console.log('Event not in localStorage, fetching from master log...');
@@ -608,7 +596,7 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
       event = await this.dataService.getEventFromMasterLog(eventId);
       this.isSyncing.set(false);
     }
-    
+
     if (!event) {
       console.error('Event not found');
       alert('Event not found. Please check the URL or create the event first.');
@@ -647,10 +635,10 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     const colors = new Set<string>();
     this.allAttendees().forEach(a => {
       if (a.lanyardColor && a.lanyardColor.trim()) {
-         colors.add(a.lanyardColor.trim());
+        colors.add(a.lanyardColor.trim());
       }
     });
-    if (colors.size === 0) return ['Green', 'Yellow', 'Crimson Red', 'Charcoal Grey','Red'];
+    if (colors.size === 0) return ['Green', 'Yellow', 'Crimson Red', 'Charcoal Grey', 'Red'];
     return Array.from(colors).sort();
   });
 
@@ -670,8 +658,8 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
 
     const q = this.searchQuery().toLowerCase();
     if (q) {
-      list = list.filter(a => 
-        a.fullName.toLowerCase().includes(q) || 
+      list = list.filter(a =>
+        a.fullName.toLowerCase().includes(q) ||
         a.company.toLowerCase().includes(q)
       );
     }
@@ -689,13 +677,13 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   groupedAttendees = computed(() => {
     const list = this.filteredAttendees();
     const groups = new Map<string, Attendee[]>();
-    
+
     list.forEach(a => {
       const key = a.company || 'Other';
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key)!.push(a);
     });
-    
+
     return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
   });
 
@@ -710,8 +698,8 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     // Filter by search
     const q = this.searchQuery().toLowerCase();
     if (q) {
-      list = list.filter(a => 
-        a.fullName.toLowerCase().includes(q) || 
+      list = list.filter(a =>
+        a.fullName.toLowerCase().includes(q) ||
         a.company.toLowerCase().includes(q)
       );
     }
@@ -738,7 +726,7 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   closeDetail() {
     this.selectedAttendee.set(null);
   }
-  
+
   handleLanyardUpdate(id: string, color: string) {
     this.dataService.updateLanyardColor(id, color);
     const updated = this.allAttendees().find(a => a.id === id);
@@ -746,18 +734,18 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
   }
 
   handleAttendanceToggle(id: string) {
-    if (this.mode() === 'spoc') return; 
+    if (this.mode() === 'spoc') return;
 
     this.dataService.toggleAttendance(id);
     const updated = this.allAttendees().find(a => a.id === id);
-    
+
     // Fix: Only update selectedAttendee if the modal is currently open for this user.
     // This prevents the modal from opening when toggling from the list view.
     if (updated && this.selectedAttendee()?.id === id) {
-        this.selectedAttendee.set(updated);
+      this.selectedAttendee.set(updated);
     }
   }
-  
+
   handleNoteUpdate(id: string, note: string) {
     this.dataService.updateNote(id, note);
     const updated = this.allAttendees().find(a => a.id === id);
@@ -779,41 +767,19 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     // Use the event's sheet URL
     const event = this.dataService.getEventById(this.eventId());
     if (event) {
-        await this.dataService.addWalkInAttendee(
-          this.walkInForm, 
-          event.sheetUrl,
-          {
-            name:this.defaultSpocName(),
-            email:this.defaultSpocEmail(),
-            slack:this.defaultSpocSlack()
-          }
-        );
+      await this.dataService.addWalkInAttendee(
+        this.walkInForm,
+        event.sheetUrl,
+        {
+          name: event.defaultSpocName || '',
+          email: event.defaultSpocEmail || '',
+          slack: event.defaultSpocSlack || ''
+        }
+      );
     }
     this.isAddingWalkIn.set(false);
     this.closeWalkIn();
   }
-
-  async saveDefaultSpoc() {
-    const eventId = this.eventId();
-    await this.dataService.updateEvent(eventId, {
-      defaultSpocName: this.defaultSpocName(),
-      defaultSpocEmail: this.defaultSpocEmail(),
-      defaultSpocSlack: this.defaultSpocSlack()
-    });
-    this.isEditingSpoc.set(false);
-    alert('Default SPOC updated successfully');
-  }
-
-  cancelEditSpoc() {
-    const event = this.dataService.getEventById(this.eventId());
-    if (event) {
-      this.defaultSpocName.set(event.defaultSpocName || '');
-      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
-      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
-    }
-    this.isEditingSpoc.set(false);
-  }
-
 
   getLanyardHex(color: string): string {
     const c = color?.toLowerCase() || '';

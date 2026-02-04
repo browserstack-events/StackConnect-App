@@ -1,4 +1,4 @@
-import { Component, inject, input, computed, OnInit } from '@angular/core';
+import { Component, inject, input, computed, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -34,7 +34,7 @@ import { DataService } from '../services/data.service';
           </a>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 px-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8 px-4 mb-12">
           
           <a [routerLink]="['/event', id(), 'desk']"
              (click)="setAccess()"
@@ -85,6 +85,83 @@ import { DataService } from '../services/data.service';
           </a>
 
         </div>
+
+        <!-- ✅ NEW: Default SPOC Settings (Admin Only) -->
+        @if (isAdmin()) {
+          <div class="max-w-2xl mx-auto">
+            <div class="bg-white p-8 rounded-2xl shadow-sm border border-gray-200">
+              <div class="flex items-center justify-between mb-6">
+                <div>
+                  <h3 class="text-xl font-bold text-slate-900">Default SPOC Settings</h3>
+                  <p class="text-sm text-slate-500">New walk-ins will be automatically assigned to this SPOC</p>
+                </div>
+                @if (!isEditingSpoc()) {
+                  <button (click)="isEditingSpoc.set(true)" 
+                          class="bg-teal-50 text-teal-700 px-4 py-2 rounded-lg text-sm font-bold hover:bg-teal-100 transition-colors">
+                    Edit
+                  </button>
+                }
+              </div>
+
+              @if (!isEditingSpoc()) {
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-x-12 gap-y-6">
+                  <div class="min-w-0">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Name</span>
+                    <p class="text-slate-900 font-bold truncate" [title]="defaultSpocName() || ''">{{ defaultSpocName() || 'Not set' }}</p>
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Email</span>
+                    <p class="text-slate-900 font-bold truncate" [title]="defaultSpocEmail() || ''">{{ defaultSpocEmail() || 'Not set' }}</p>
+                  </div>
+                  <div class="min-w-0">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">Slack ID</span>
+                    <p class="text-slate-900 font-bold truncate" [title]="defaultSpocSlack() || ''">{{ defaultSpocSlack() || 'Not set' }}</p>
+                  </div>
+                </div>
+              } @else {
+                <div class="space-y-6">
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="space-y-1.5">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Name</label>
+                      <input type="text" 
+                            [ngModel]="defaultSpocName()"
+                            (ngModelChange)="defaultSpocName.set($event)"
+                            placeholder="SPOC Name"
+                            class="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:bg-white focus:border-transparent outline-none transition-all shadow-sm" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Email</label>
+                      <input type="email" 
+                            [ngModel]="defaultSpocEmail()"
+                            (ngModelChange)="defaultSpocEmail.set($event)"
+                            placeholder="SPOC Email"
+                            class="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:bg-white focus:border-transparent outline-none transition-all shadow-sm" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider ml-1">Slack ID</label>
+                      <input type="text" 
+                            [ngModel]="defaultSpocSlack()"
+                            (ngModelChange)="defaultSpocSlack.set($event)"
+                            placeholder="SPOC Slack"
+                            class="w-full px-4 py-3 bg-slate-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:bg-white focus:border-transparent outline-none transition-all shadow-sm" />
+                    </div>
+                  </div>
+                  <div class="flex flex-col sm:flex-row gap-3">
+                    <button (click)="saveDefaultSpoc()" 
+                            class="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-6 py-3 rounded-xl font-bold shadow-md transition-all active:scale-95">
+                      Save Settings
+                    </button>
+                    <button (click)="cancelEditSpoc()" 
+                            class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-xl font-bold transition-all active:scale-95">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
       </div>
     </div>
   `
@@ -92,32 +169,48 @@ import { DataService } from '../services/data.service';
 export class RoleSelectionComponent implements OnInit {
   private dataService = inject(DataService);
   private router = inject(Router);
-  
+
   id = input.required<string>();
-  
+
   // Computed values for template
   eventName = computed(() => this.dataService.getEventById(this.id())?.name || 'Event Dashboard');
   eventDate = computed(() => this.dataService.getEventById(this.id())?.eventDate || '');
 
+  // Admin state
+  isAdmin = signal(false);
+
+  // Default SPOC signals
+  defaultSpocName = signal('');
+  defaultSpocEmail = signal('');
+  defaultSpocSlack = signal('');
+  isEditingSpoc = signal(false);
+
   async ngOnInit() {
     const eventId = this.id();
-    
+
+    // Check if user came from landing page (Admin Console)
+    this.isAdmin.set(sessionStorage.getItem('from_landing') === 'true');
+
     // Set access key for this event (user came from landing page or has legitimate access)
     sessionStorage.setItem(`access_${eventId}`, 'authorized');
-    
+
     // Try to get from localStorage first
     let event = this.dataService.getEventById(eventId);
-    
+
     // If not found, fetch from master log
     if (!event) {
       console.log('Event not in localStorage, fetching from master log...');
       event = await this.dataService.getEventFromMasterLog(eventId);
     }
-    
+
     if (!event) {
       console.error('Event not found');
     } else {
       console.log('✓ Event loaded:', event.name);
+      // Initialize SPOC fields
+      this.defaultSpocName.set(event.defaultSpocName || '');
+      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
+      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
     }
   }
 
@@ -129,5 +222,25 @@ export class RoleSelectionComponent implements OnInit {
   // Updates the event date in real-time
   updateDate(date: string) {
     this.dataService.updateEvent(this.id(), { eventDate: date });
+  }
+
+  async saveDefaultSpoc() {
+    const eventId = this.id();
+    await this.dataService.updateEvent(eventId, {
+      defaultSpocName: this.defaultSpocName(),
+      defaultSpocEmail: this.defaultSpocEmail(),
+      defaultSpocSlack: this.defaultSpocSlack()
+    });
+    this.isEditingSpoc.set(false);
+  }
+
+  cancelEditSpoc() {
+    const event = this.dataService.getEventById(this.id());
+    if (event) {
+      this.defaultSpocName.set(event.defaultSpocName || '');
+      this.defaultSpocEmail.set(event.defaultSpocEmail || '');
+      this.defaultSpocSlack.set(event.defaultSpocSlack || '');
+    }
+    this.isEditingSpoc.set(false);
   }
 }
