@@ -35,7 +35,7 @@ import { DummyAuthService } from "../services/dummy-auth.service";
             <!-- Dummy Auth Control (SPOC Only) -->
             @if (mode() === 'spoc') {
               @if (!dummyAuth.isLoggedIn()()) {
-                <button 
+                <!-- <button 
                   (click)="dummyAuth.signIn()"
                   class="bg-white/20 text-white hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors flex items-center gap-2 border border-white/30"
                   title="Sign in with BrowserStack Account">
@@ -43,7 +43,7 @@ import { DummyAuthService } from "../services/dummy-auth.service";
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                   </svg>
                   Sign In
-                </button>
+                </button> -->
               } @else {
                 <div class="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/20">
                   <div class="flex items-center gap-2">
@@ -605,6 +605,9 @@ export class SpocDashboardComponent implements OnInit, OnDestroy {
     }
 
     console.log('✓ Event loaded:', event.name);
+
+    // FIX: Clear previous event data to prevent flickering of old data
+    this.dataService.clearAttendees();
 
     // Load event data
     this.isSyncing.set(true);
