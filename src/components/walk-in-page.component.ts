@@ -71,14 +71,14 @@ import { Router } from '@angular/router';
               [disabled]="submitting() || !fullName().trim() || !email().trim() || !company().trim()"
               class="w-full py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium transition text-lg"
             >
-              {{ submitting() ? 'Submitting...' : 'Check In' }}
+              {{ submitting() ? 'Submitting...' : 'Register' }}
             </button>
           </form>
         } @else {
           <div class="text-center py-8">
             <div class="text-6xl mb-4">✅</div>
             <h2 class="text-2xl font-bold text-green-600 mb-2">Successfully Registered!</h2>
-            <p class="text-gray-600 mb-6">You have been checked in. Please collect your badge.</p>
+            <p class="text-gray-600 mb-6">You have been registered. Please collect your badge.</p>
             <button
               (click)="reset()"
               class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition"
@@ -99,29 +99,29 @@ export class WalkInPageComponent implements OnInit {
   private router = inject(Router);
 
   id = input.required<string>();
-  
+
   fullName = signal('');
   email = signal('');
   company = signal('');
   contact = signal('');
   submitted = signal(false);
   submitting = signal(false);
-  
+
   eventName = signal('Event');
   private currentEvent: any = null;
 
   async ngOnInit() {
     const eventId = this.id();
-    
+
     // Try to get from localStorage first
     let event = this.dataService.getEventById(eventId);
-    
+
     // If not found, fetch from master log
     if (!event) {
       console.log('Event not in localStorage, fetching from master log...');
       event = await this.dataService.getEventFromMasterLog(eventId);
     }
-    
+
     if (!event) {
       console.error('Event not found');
       // Don't redirect - just show error in the current page
@@ -129,7 +129,7 @@ export class WalkInPageComponent implements OnInit {
       alert('Event not found. Please contact the event organizer.');
       return;
     }
-    
+
     this.currentEvent = event;
     this.eventName.set(event.name);
     this.dataService.sheetName.set(event.name);
@@ -156,7 +156,7 @@ export class WalkInPageComponent implements OnInit {
         contact: this.contact()
       },
       this.currentEvent.sheetUrl,
-      {        
+      {
         name: this.currentEvent.defaultSpocName,
         email: this.currentEvent.defaultSpocEmail,
         slack: this.currentEvent.defaultSpocSlack
