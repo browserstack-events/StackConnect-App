@@ -30,7 +30,7 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: Build
-        run: npm run build -- --base-href /Sales-SPOC-Dashboard/
+        run: npm run build -- --base-href /StackConnect-App/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
